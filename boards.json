@@ -1,0 +1,11 @@
+{
+    "1":{
+        "project_id": 1,
+        "page_id": 1,
+        "name": "board-1",
+        "description": "optional",
+        "priority": "high", 
+        "date_of_creation": "04-08-2025 16:15:56",
+        "tasks": [1, 2, 3]    
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "1":{
+        "board_id": 1,
+        "name": "title",
+        "description": "",
+        "collaborators": [{"usr_id": 1, "role": "loh", "salary": 0}],
+        "price": -1,
+        "priority":"high",
+        "status": "done",
+        "tags": ["tag1", "tag2", "tag3"],
+        "time_to_complete" : -1,
+        "date_of_creation": "04-08-2025 16:15:56",
+        "custom_fields": [{"class": "checkbox"},{"class": "deadline_date"},{"class": "text"},{"class": "dropdown"}]
+    }
+}
