@@ -55,11 +55,12 @@ class User:
         self.projects  = []
 
 
-def updatable_fields(fields: dict[str, type]):
+def fields(all_fields: dict[str, type], updatable_fields: dict[str, type]):
     """Decorator which adds allowed attributes to change in class"""
     typeErr = TypeError("Function returned wrong data type")
     def decorator(cls: BaseEntity):
-        cls.__updatable_fields__ = fields
+        cls.__updatable_fields__ = updatable_fields
+        cls.__fields__ = all_fields
         return cls
        
     return decorator
@@ -67,18 +68,22 @@ def updatable_fields(fields: dict[str, type]):
 
 class BaseEntity(JSON_interface):
     """Base class for entities"""
+    __fields__: dict[str, type] = {} # all fields
     __updatable_fields__: dict[str, type] = {} # all allowed attributes to be changed
 
-    def __init__(self, name: str = "", description: str = "", template: dict = None, template_id: str = None):
+    def __init__(self, template: dict, template_id: str = None):
         super().__init__()
-        if template is not None and template_id is not None:
-            self.parse_dict(template=template, template_id = template_id)
-        else:
-            self.name = name
-            self.description = description
-            self.id = str(uuid.uuid4())
-            self.date_of_creation = datetime.strftime(datetime.now(), "%d-%m-%y %H:%M:%S")
-
+        if template_id is None:
+            template_id = str(uuid.uuid4())
+        self.parse_dict(template=template, template_id = template_id)
+            
+    def check_template(self, template: dict, necessary_keys: list):
+        """Method which checks if template has a valid structure"""
+        for key in necessary_keys:
+            if key not in template.keys():
+                return False
+        return True
+        
 
     def update(self, **kwargs):
         """Method that allows to change attribute values (only ones that allowed to)"""
@@ -100,7 +105,21 @@ class BaseEntity(JSON_interface):
 
 
 
-@updatable_fields({
+@fields(all_fields = {
+    "id": str,
+    "board_id": str,
+    "date_of_creation": str,
+    "name": str,
+    "description": str,
+    "status": str,
+    "tags": list[str],
+    "price": float,
+    "priority": str,
+    "time_to_complete": float,
+    "custom_fields": list[CustomField],
+    "collaborators": list[int]
+},
+        updatable_fields = {
     "name": str,
     "description": str,
     "status": str,
@@ -113,37 +132,27 @@ class BaseEntity(JSON_interface):
 })
 class Task(BaseEntity):
     """Class for 'task' instance, contains 'custom fields' instances"""
-    def __init__(self, board_id: str = None, name: str = None, description: str = None, template_id: str = None, template: dict = None, status: str = None, tags: list[str] = None, custom_fields: list[CustomField] = None, collaborators: list[dict] = None):
-        self.board_id = board_id
-        self.price = None
-        self.priority = None
-        self.time_to_complete = None
+    def __init__(self, template_id: str, template: dict):
+        super().__init__(template=template, template_id = template_id)
 
-        self.status = status
-
-        self.tags = tags if tags is not None else []
-        self.custom_fields = custom_fields if custom_fields is not None else []
-        self.collaborators = collaborators if collaborators is not None else []
-
-        super().__init__(name=name, description=description, template=template, template_id = template_id)
-
-    def add_collaborator(self, collaborator: dict):
+    def add_collaborator(self, collaborator: dict) -> None:
         """Add a new collaborator by dict: {'usr_id': int, 'role': str, 'salary': float}"""
         self.collaborators.append(collaborator)
 
-    # Допрацювати після створення класів кастомних полів
-    def add_custom_field(self, template: dict):
-        try:
-            temp = template.copy()
-            field_type = temp.pop('class')
-            
-            return self.custom_fields.append(custom_fields[field_type](temp))
-        except:
-            ValueError("Template for custom fiels creation is incorrect!")
+    def add_custom_field(self, template: dict) -> None:
+        temp = template.copy()
+        field_type = temp.pop('class')
+        custom_field = custom_fields.get(field_type, None)
+        if custom_field is None:
+            print(field_type)
+            raise ValueError("Template for custom fiels creation is incorrect!")
+        self.custom_fields.append(custom_field(temp))
+
 
     # Допрацювати
     def parse_dict(self, template_id: str, template: dict):
-        try:
+        necessery_keys = [key for key in self.__fields__.keys() if key != 'id']
+        if self.check_template(template=template, necessary_keys=necessery_keys):
             self.id = template_id
             self.board_id = template['board_id']
             self.date_of_creation = template['date_of_creation']
@@ -161,11 +170,11 @@ class Task(BaseEntity):
 
             self.custom_fields = []
             for field in template['custom_fields']:
-                pass
+                self.add_custom_field(field)
 
-                                     
-        except Exception as e:
-            print(e)
+        else:
+            raise ValueError("Template for entity creation is incorrect!")
+
 
 
     def dump_to_dict(self):
@@ -235,21 +244,21 @@ class Project(JSON_interface):
 
     
 
-# t = Task(template = {
-#         "board_id": 1,
-#         "name": "title",
-#         "description": "",
-#         "collaborators": [{"usr_id": 1, "role": "loh", "salary": 0}],
-#         "price": -1,
-#         "priority":"high",
-#         "status": "done",
-#         "tags": ["tag1", "tag2", "tag3"],
-#         "time_to_complete" : -1,
-#         "date_of_creation": "04-08-2025 16:15:56",
-#         "custom_fields": [{"class": "checkbox"},{"class": "deadline_date"},{"class": "text"},{"class": "dropdown"}]
-#     }, template_id = '1')
+t = Task(template = {
+        "board_id": 1,
+        "name": "title",
+        "description": "",
+        "collaborators": [{"usr_id": 1, "role": "loh", "salary": 0}],
+        "price": -1,
+        "priority":"high",
+        "status": "done",
+        "tags": ["tag1", "tag2", "tag3"],
+        "time_to_complete" : -1,
+        "date_of_creation": "04-08-2025 16:15:56",
+        "custom_fields": [{"class": "deadline_date", "date":"04-08-2025 16:15:1488"}]
+    }, template_id = '23')
 
-
+# {"class": "checkbox"},{"class": "text"},{"class": "dropdown"}
 
 # t.add_custom_field({"class": "deadline_date", "date":"04-08-2025 16:15:1488"})
 
