@@ -71,6 +71,7 @@ class BaseEntity(JSON_interface):
 },
         updatable_fields = {
     "name": str,
+    "board_id": str,
     "description": str,
     "status": str,
     "tags": list[str],
@@ -84,6 +85,10 @@ class Task(BaseEntity):
     """Class for 'task' instance, contains 'custom fields' instances"""
     def __init__(self, template_id: str, template: dict):
         super().__init__(template=template, template_id = template_id)
+
+    @property
+    def id(self):
+        return self.id
 
 
     def add_collaborator(self, collaborator: dict) -> None:
@@ -128,12 +133,12 @@ class Task(BaseEntity):
 
 
     def dump_to_dict(self):
-        custom_fields: list[CustomField] = []
+        custom_fields: list[dict] = []
 
         for c_f in self.custom_fields:
             custom_fields.append(c_f.dump_to_dict())
 
-        ret = self.__dict__
+        ret: dict = self.__dict__
         ret['custom_fields'] = custom_fields
 
         if isinstance(ret, dict):
@@ -143,20 +148,80 @@ class Task(BaseEntity):
         
 
 
-
-class Board(JSON_interface):
+@fields(all_fields={
+    "id": str,
+    "page_id": str,
+    "name": str,
+    "description": str,
+    "priority": str,
+    "date_of_creation": str,
+    "tasks": list[Task]
+},
+        updatable_fields={
+    "page_id": str,
+    "name": str,
+    "description": str,
+    "priority": str,
+    "tasks": list[Task]
+        }
+)
+class Board(BaseEntity):
     """Class for 'board' instance, contains 'task' instances"""
-    pass
+    def __init__(self, template: dict, template_id: str):
+        super().__init__(template, template_id)
 
+    def add_task(self, task_template: dict = None , task_id: str = None):
+        """Adds 'task' instance to the 'board' instance via template: {"id": str, "board_id": str, "date_of_creation": str, "name": str, "description": str, "status": str, "tags": list[str], "price": float, "priority": str, "time_to_complete": float, "custom_fields": list[CustomField], "collaborators": list[int]}} or task_id(soon)"""
+        if task_id is not None:
+            '''Huge problem indeed, we need database first'''
+            # Database needed
+            pass
+        elif task_template is not None:
+            self.tasks.append(Task(task_template))
+        else:
+            raise ValueError("Neither task template nor task id wasn't given!")
+
+    def parse_dict(self, template_id: str, template: dict):
+        necessery_keys = [key for key in self.__fields__.keys() if key != 'id']
+        if self.check_template(template= template, necessary_keys=necessery_keys):
+            self.id: str = template_id
+
+            self.page_id: str = template['page_id']
+            self.date_of_creation: str = template['date_of_creation']
+
+            self.name: str = template['name']
+            self.description: str = template['description']
+            self.priority: str = template['priority']
+
+            self.tasks: list[Task] = []
+            for task_id in template['tasks']:
+                self.add_task(task_id=task_id)
+        else:
+            raise ValueError("Template for entity creation is incorrect!")
+        
+    def dump_to_dict(self):
+        tasks: list[str] = []
+
+        for task in self.tasks:
+            tasks.append(task.id)
+
+        ret: dict = self.__dict__
+        ret['tasks'] = tasks
+
+        if isinstance(ret, dict):
+            return self.__dict__
+        else:
+            raise TypeError(f"Return value is not dictionary!")
+        
 
 # Переробити під BaseEntity!!!!!!!!!!!!!
-class Page(JSON_interface):
+class Page(BaseEntity):
     """Class for 'page' instance, contains 'board' instances"""
     pass
 
 
 # Переробити під BaseEntity!!!!!!!!!!!!!
-class Project(JSON_interface):
+class Project(BaseEntity):
     """Class for 'project' instance, contains 'page' instances and workers"""
     pass
 
