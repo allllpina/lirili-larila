@@ -1,9 +1,10 @@
-{
-    "1":{
+[
+    {
+        "_id":"someid",
         "project_id": 1,
         "name": "page-1",
         "description": "optional",
         "date_of_creation": "04-08-2025 16:15:56",
         "boards": [1, 2, 3]
     }
-}
+]

@@ -1,5 +1,6 @@
-{
-    "1":{
+[
+    {
+        "_id":"someid",
         "board_id": 1,
         "name": "title",
         "description": "",
@@ -12,4 +13,4 @@
         "date_of_creation": "04-08-2025 16:15:56",
         "custom_fields": [{"class": "checkbox"},{"class": "deadline_date"},{"class": "text"},{"class": "dropdown"}]
     }
-}
+]

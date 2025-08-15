@@ -22,11 +22,12 @@ class BaseEntity(JSON_interface):
     __fields__: dict[str, type] = {} # all fields
     __updatable_fields__: dict[str, type] = {} # all allowed attributes to be changed
 
-    def __init__(self, template: dict, template_id: str = None):
+    def __init__(self, template: dict):
         super().__init__()
-        if template_id is None:
-            template_id = str(uuid.uuid4())
-        self.parse_dict(template=template, template_id = template_id)
+        if not template.get("_id", None):
+            template["_id"] = str(uuid.uuid4())
+
+        self.parse_dict(template=template)
             
     def check_template(self, template: dict, necessary_keys: list):
         """Method which checks if template has a valid structure"""
@@ -56,7 +57,7 @@ class BaseEntity(JSON_interface):
 
 
 @fields(all_fields = {
-    "id": str,
+    "_id": str,
     "board_id": str,
     "date_of_creation": str,
     "name": str,
@@ -83,12 +84,12 @@ class BaseEntity(JSON_interface):
 })
 class Task(BaseEntity):
     """Class for 'task' instance, contains 'custom fields' instances"""
-    def __init__(self, template_id: str, template: dict):
-        super().__init__(template=template, template_id = template_id)
+    def __init__(self, template: dict):
+        super().__init__(template=template)
 
     @property
     def id(self):
-        return self.id
+        return self._id
 
 
     def add_collaborator(self, collaborator: dict) -> None:
@@ -106,10 +107,9 @@ class Task(BaseEntity):
         self.custom_fields.append(custom_field(temp))
 
 
-    def parse_dict(self, template_id: str, template: dict):
-        necessery_keys = [key for key in self.__fields__.keys() if key != 'id']
-        if self.check_template(template=template, necessary_keys=necessery_keys):
-            self.id: str = template_id
+    def parse_dict(self, template: dict):
+        if self.check_template(template=template, necessary_keys=self.__fields__):
+            self._id: str = template["_id"] # Change regarding on MongoDB requirements
             self.board_id: str = template['board_id']
             self.date_of_creation: str = template['date_of_creation']
 
@@ -146,7 +146,7 @@ class Task(BaseEntity):
 
 
 @fields(all_fields={
-    "id": str,
+    "_id": str,
     "page_id": str,
     "name": str,
     "description": str,
@@ -164,12 +164,12 @@ class Task(BaseEntity):
 )
 class Board(BaseEntity):
     """Class for 'board' instance, contains 'task' instances"""
-    def __init__(self, template: dict, template_id: str):
-        super().__init__(template, template_id)
+    def __init__(self, template: dict):
+        super().__init__(template=template)
 
     @property
     def id(self):
-        return self.id
+        return self._id
 
     def add_task(self, task_template: dict = None , task_ids: list[str] = None):
         """Adds 'task' instance to the 'board' instance via template: {"board_id": str, "date_of_creation": str, "name": str, "description": str, "status": str, "tags": list[str], "price": float, "priority": str, "time_to_complete": float, "custom_fields": list[dict] (custom field templates), "collaborators": list[int]}} or task_id(soon)"""
@@ -182,10 +182,9 @@ class Board(BaseEntity):
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
-    def parse_dict(self, template_id: str, template: dict):
-        necessery_keys = [key for key in self.__fields__.keys() if key != 'id']
-        if self.check_template(template= template, necessary_keys=necessery_keys):
-            self.id: str = template_id
+    def parse_dict(self, template: dict):
+        if self.check_template(template= template, necessary_keys=self.__fields__):
+            self._id: str = template["_id"] # Change regarding on MongoDB requirements
 
             self.page_id: str = template['page_id']
             self.date_of_creation: str = template['date_of_creation']
@@ -211,7 +210,7 @@ class Board(BaseEntity):
         
 
 @fields(all_fields={
-    "id": str,
+    "_id": str,
     "project_id": str,
     "name": str,
     "description": str,
@@ -226,12 +225,12 @@ class Board(BaseEntity):
 )
 class Page(BaseEntity):
     """Class for 'page' instance, contains 'board' instances"""
-    def __init__(self, template: dict, template_id: str):
-        super().__init__(template, template_id)
+    def __init__(self, template: dict):
+        super().__init__(template= template)
 
     @property
     def id(self):
-        return self.id
+        return self._id
     
     def add_board(self, board_template: dict = None, board_ids: list = None):
         """Adds 'board' instance to the 'task' instance via template: {"page_id": str, "name": str, "description": str, "priority": str, "date_of_creation": str, "tasks": list[str](task IDs)} or board_id(soon)"""
@@ -244,10 +243,9 @@ class Page(BaseEntity):
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
-    def parse_dict(self, template_id: str, template: dict):
-        necessery_keys = [key for key in self.__fields__.keys() if key != 'id']
-        if self.check_template(template= template, necessary_keys= necessery_keys):
-            self.id: str = template_id
+    def parse_dict(self, template: dict):
+        if self.check_template(template= template, necessary_keys= self.__fields__):
+            self._id: str = template["_id"] # Change regarding on MongoDB requirements
 
             self.project_id:str = template['project_id']
             self.date_of_creation: str = template['date_of_creation']
@@ -273,7 +271,7 @@ class Page(BaseEntity):
 
 
 @fields(all_fields={
-    "id": str,
+    "_id": str,
     "admin_id": int,
     "name": str,
     "description": str,
@@ -292,12 +290,12 @@ class Page(BaseEntity):
 )
 class Project(BaseEntity):
     """Class for 'project' instance, contains 'page' instances and workers"""
-    def __init__(self, template: dict, template_id: str):
-        super().__init__(template, template_id)
+    def __init__(self, template: dict):
+        super().__init__(template = template)
 
     @property
     def id(self):
-        return self.id
+        return self._id
     
     def add_page(self, page_template: dict = None, page_ids: list[str] = None):
         """Adds 'page' instance to the 'project' instance via template: {"project_id": str, "name": str, "description": str, "date_of_creation": str, "boards": list[str] (list of IDs)} or page_id(soon)"""
@@ -310,10 +308,9 @@ class Project(BaseEntity):
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
-    def parse_dict(self, template_id: str, template: dict):
-        necessery_keys = [key for key in self.__fields__.keys() if key != 'id']
-        if self.check_template(template=template, necessary_keys=necessery_keys):
-            self.id: str = template_id
+    def parse_dict(self, template: dict):
+        if self.check_template(template=template, necessary_keys=self.__fields__):
+            self._id: str = template["_id"] # Change regarding on MongoDB requirements
 
             self.admin_id: int = template['admin_id']
             self.date_of_creation: str = template['date_of_creation']
@@ -340,7 +337,8 @@ class Project(BaseEntity):
             raise TypeError(f"Return value is not dictionary!")
           
 
-# t = Task(template = {
+# t: Task = Task(template = {
+#         '_id': 'f4ff2ec4-0790-467e-8b80-7119dd1aacc4',
 #         "board_id": 1,
 #         "name": "title",
 #         "description": "",
@@ -352,7 +350,8 @@ class Project(BaseEntity):
 #         "time_to_complete" : -1,
 #         "date_of_creation": "04-08-2025 16:15:56",
 #         "custom_fields": [{"type": "deadline_date", "date":"04-08-2025 16:15:14", "is_expired": True}, {'type':"checkbox",'checked': True, "text": "popa"}]
-#     }, template_id = '23')
+#     })
 
+# print(t.dump_to_dict())
 
 

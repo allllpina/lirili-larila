@@ -1,5 +1,6 @@
-{
-    "1":{
+[
+    {
+        "_id:": "someid",
         "project_id": 1,
         "page_id": 1,
         "name": "board-1",
@@ -8,4 +9,4 @@
         "date_of_creation": "04-08-2025 16:15:56",
         "tasks": [1, 2, 3]    
     }
-}
+]
