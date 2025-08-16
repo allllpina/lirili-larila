@@ -2,9 +2,15 @@ import json
 import uuid
 from datetime import datetime
 
+from pymongo import AsyncMongoClient
 
 from interfaces import JSON_interface
 from custom_fields import *
+
+# Temporary vars
+DATABASE_HOST = 'localhost'
+DATABASE_PORT = 27017
+DATABASE_NAME = 'entities'
 
 def fields(all_fields: dict[str, type], updatable_fields: dict[str, type]):
     """Decorator which adds allowed attributes to change in class"""
@@ -22,7 +28,7 @@ class BaseEntity(JSON_interface):
     __fields__: dict[str, type] = {} # all fields
     __updatable_fields__: dict[str, type] = {} # all allowed attributes to be changed
 
-    def __init__(self, template: dict):
+    def __init__(self, template: dict = None):
         super().__init__()
         if not template.get("_id", None):
             template["_id"] = str(uuid.uuid4())
@@ -35,6 +41,7 @@ class BaseEntity(JSON_interface):
             if key not in template.keys():
                 return False
         return True
+    
         
 
     def update(self, **kwargs):
@@ -49,6 +56,9 @@ class BaseEntity(JSON_interface):
             
             setattr(self, key, value)
         self.update_log(self.__class__.__name__)
+
+    def get_from_db(self, id: str, db) -> dict:
+        pass
 
     # TO CHANGE IN DEVELOPMENT
     def update_log(self, name:str):
