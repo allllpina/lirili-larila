@@ -2,6 +2,7 @@
     {
         "_id":"someid",
         "board_id": 1,
+        "project_id": "alkshdflas",
         "name": "title",
         "description": "",
         "collaborators": [{"usr_id": 1, "role": "loh", "salary": 0}],

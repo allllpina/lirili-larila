@@ -1,10 +1,14 @@
-from pymongo import AsyncMongoClient
+from pymongo import MongoClient
 
+client = MongoClient("localhost", 27017)
 
+db = client.get_database("test")
+collection = db.get_collection("tasks")
 
 post = {
     '_id': 'f4ff2ec4-0790-467e-8b80-7119dd1aacc4',
-    'board_id': 2,
+    'board_id': "ef6c7ce2-5af5-457c-a803-9dd35f725c54",
+    "project_id": "a0f87369-9c36-417d-bfec-764f65332733",
     'date_of_creation': '04-08-2025 16:15:56',
     'name': 'title',
     'description': '',
@@ -18,5 +22,5 @@ post = {
 
 print(type(db))
 
-# post_id = collection.replace_one({"_id": "f4ff2ec4-0790-467e-8b80-7119dd1aacc4"}, post)
+post_id = collection.replace_one({"_id": "f4ff2ec4-0790-467e-8b80-7119dd1aacc4"}, post)
 # print(collection.find_one({'_id': "f4ff2ec4-0790-467e-8b80-7119dd1aacc4"}))

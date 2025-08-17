@@ -3,14 +3,10 @@ import uuid
 from datetime import datetime
 
 from pymongo import AsyncMongoClient
+from pymongo.database import Database
 
-from interfaces import JSON_interface
-from custom_fields import *
-
-# Temporary vars
-DATABASE_HOST = 'localhost'
-DATABASE_PORT = 27017
-DATABASE_NAME = 'entities'
+from entities_module.interfaces import JSON_interface
+from entities_module.custom_fields import *
 
 def fields(all_fields: dict[str, type], updatable_fields: dict[str, type]):
     """Decorator which adds allowed attributes to change in class"""
@@ -28,22 +24,19 @@ class BaseEntity(JSON_interface):
     __fields__: dict[str, type] = {} # all fields
     __updatable_fields__: dict[str, type] = {} # all allowed attributes to be changed
 
-    def __init__(self, template: dict = None):
+    def __init__(self, template: dict):
         super().__init__()
         if not template.get("_id", None):
             template["_id"] = str(uuid.uuid4())
-
         self.parse_dict(template=template)
-            
+
+
     def check_template(self, template: dict, necessary_keys: list):
         """Method which checks if template has a valid structure"""
         for key in necessary_keys:
             if key not in template.keys():
                 return False
-        return True
-    
-        
-
+        return True    
     def update(self, **kwargs):
         """Method that allows to change attribute values (only ones that allowed to)"""
         for key, value in kwargs.items():
@@ -57,8 +50,6 @@ class BaseEntity(JSON_interface):
             setattr(self, key, value)
         self.update_log(self.__class__.__name__)
 
-    def get_from_db(self, id: str, db) -> dict:
-        pass
 
     # TO CHANGE IN DEVELOPMENT
     def update_log(self, name:str):
@@ -69,6 +60,7 @@ class BaseEntity(JSON_interface):
 @fields(all_fields = {
     "_id": str,
     "board_id": str,
+    "project_id": str,
     "date_of_creation": str,
     "name": str,
     "description": str,
@@ -93,6 +85,7 @@ class BaseEntity(JSON_interface):
     "collaborators": list[int]
 })
 class Task(BaseEntity):
+    __collection__ = 'tasks'
     """Class for 'task' instance, contains 'custom fields' instances"""
     def __init__(self, template: dict):
         super().__init__(template=template)
@@ -121,6 +114,7 @@ class Task(BaseEntity):
         if self.check_template(template=template, necessary_keys=self.__fields__):
             self._id: str = template["_id"] # Change regarding on MongoDB requirements
             self.board_id: str = template['board_id']
+            self.project_id: str = template["project_id"]
             self.date_of_creation: str = template['date_of_creation']
 
             self.name: str = template['name']
@@ -143,10 +137,14 @@ class Task(BaseEntity):
 
 
     def dump_to_dict(self):
-        custom_fields: list[dict] = [c_f.dump_to_dict() for c_f in self.custom_fields]
-
         ret: dict = self.__dict__
-        ret['custom_fields'] = custom_fields
+
+        try:
+            custom_fields: list[str] = [c_f.dump_to_dict() for c_f in self.custom_fields]
+
+            ret['custom_fields'] = custom_fields
+        except:
+            ret['custom_fields'] = []
 
         if isinstance(ret, dict):
             return self.__dict__
@@ -181,14 +179,16 @@ class Board(BaseEntity):
     def id(self):
         return self._id
 
-    def add_task(self, task_template: dict = None , task_ids: list[str] = None):
+    def add_tasks(self, task_templates: dict = None , task_ids: list[str] = None):
         """Adds 'task' instance to the 'board' instance via template: {"board_id": str, "date_of_creation": str, "name": str, "description": str, "status": str, "tags": list[str], "price": float, "priority": str, "time_to_complete": float, "custom_fields": list[dict] (custom field templates), "collaborators": list[int]}} or task_id(soon)"""
         if task_ids is not None:
             '''Huge problem indeed, we need database first'''
             # Database needed
-            pass
-        elif task_template is not None:
-            self.tasks.append(Task(task_template))
+            for id in task_ids:
+                self.from_db()
+        elif task_templates is not None:
+            for temp in task_templates:
+                self.tasks.append(Task(temp))
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
@@ -203,15 +203,25 @@ class Board(BaseEntity):
             self.description: str = template['description']
             self.priority: str = template['priority']
 
-            self.tasks: list[Task] = self.add_task(task_ids=template['tasks'])
+            self.tasks: list[Task] = []
+            tasks = template.get('tasks') or []
+            if all(isinstance(task, int) for task in tasks):
+                self.add_tasks(task_ids=tasks)
+            else:
+                self.add_tasks(task_templates=tasks)
+
+
         else:
             raise ValueError("Template for entity creation is incorrect!")
         
     def dump_to_dict(self):
-        tasks: list[str] = [task.id for task in self.tasks]
-
         ret: dict = self.__dict__
+        tasks = []
+        if self.tasks:
+            tasks = [task.id for task in self.tasks]
+
         ret['tasks'] = tasks
+
 
         if isinstance(ret, dict):
             return self.__dict__
@@ -235,21 +245,21 @@ class Board(BaseEntity):
 )
 class Page(BaseEntity):
     """Class for 'page' instance, contains 'board' instances"""
-    def __init__(self, template: dict):
-        super().__init__(template= template)
 
     @property
     def id(self):
         return self._id
     
-    def add_board(self, board_template: dict = None, board_ids: list = None):
+    def add_boards(self, board_templates: dict = None, board_ids: list = None):
         """Adds 'board' instance to the 'task' instance via template: {"page_id": str, "name": str, "description": str, "priority": str, "date_of_creation": str, "tasks": list[str](task IDs)} or board_id(soon)"""
         if board_ids is not None:
             '''Huge problem indeed, we need database first'''
             # Database needed
-            pass
-        elif board_template is not None:
-            self.tasks.append(Task(board_template))
+            for id in board_ids:
+                print(id)
+        elif board_templates is not None:
+            for temp in board_templates:
+                self.boards.append(Board(temp))
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
@@ -263,15 +273,23 @@ class Page(BaseEntity):
             self.name: str = template['name']
             self.description: str = template['description']
 
-            self.boards: list[Board] = self.add_board(board_ids=template['pages'])
+            self.boards: list[Board] = []
+            boards = template.get('boards') or []
+            if all(isinstance(board, int) for board in boards):
+                self.add_boards(board_ids=boards)
+            else:
+                self.add_boards(board_templates=boards)
+
         else:
             raise ValueError("Template for entity creation is incorrect!")
         
     def dump_to_dict(self):
-        boards: list[str] = [board.id for board in self.boards]
-
         ret: dict = self.__dict__
-        ret['boards'] = boards
+        boards = []
+        if self.boards:
+            boards = [board.id for board in self.boards]
+        
+        ret["boards"] = boards
 
         if isinstance(ret, dict):
             return self.__dict__
@@ -300,21 +318,21 @@ class Page(BaseEntity):
 )
 class Project(BaseEntity):
     """Class for 'project' instance, contains 'page' instances and workers"""
-    def __init__(self, template: dict):
-        super().__init__(template = template)
 
     @property
     def id(self):
         return self._id
     
-    def add_page(self, page_template: dict = None, page_ids: list[str] = None):
+    def add_pages(self, page_templates: dict = None, page_ids: list[str] = None):
         """Adds 'page' instance to the 'project' instance via template: {"project_id": str, "name": str, "description": str, "date_of_creation": str, "boards": list[str] (list of IDs)} or page_id(soon)"""
         if page_ids is not None:
             '''Huge problem indeed, we need database first'''
             # Database needed
-            pass
-        elif page_template is not None:
-            self.tasks.append(Task(board_template))
+            for id in page_ids:
+                print(id)
+        elif page_templates is not None:
+            for temp in page_templates:
+                self.pages.append(Page(temp))
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
@@ -330,38 +348,29 @@ class Project(BaseEntity):
             self.collaborators: list[dict] = template['collaborators']
             self.price: int = template['price']
 
-            self.pages: list[Page] = self.add_page(page_ids=template['pages'])
+            self.pages: list[Page] = []
+            pages = template.get("pages") or []
+            if all(isinstance(page, int) for page in pages):
+                self.add_pages(page_ids=pages)
+            else:
+                self.add_pages(page_templates=pages)
         else:
             raise  ValueError("Template for entity creation is incorrect!")
 
 
     def dump_to_dict(self):
-        pages: list[str] = [page.id for page in self.pages]
-
         ret: dict = self.__dict__
+        pages = []
+        if self.pages:
+            pages = [page.id for page in self.pages]
+            
         ret['pages'] = pages
+        
 
         if isinstance(ret, dict):
             return self.__dict__
         else:
             raise TypeError(f"Return value is not dictionary!")
           
-
-# t: Task = Task(template = {
-#         '_id': 'f4ff2ec4-0790-467e-8b80-7119dd1aacc4',
-#         "board_id": 1,
-#         "name": "title",
-#         "description": "",
-#         "collaborators": [{"usr_id": 1, "role": "loh", "salary": 0}],
-#         "price": -1,
-#         "priority":"high",
-#         "status": "done",
-#         "tags": ["tag1", "tag2", "tag3"],
-#         "time_to_complete" : -1,
-#         "date_of_creation": "04-08-2025 16:15:56",
-#         "custom_fields": [{"type": "deadline_date", "date":"04-08-2025 16:15:14", "is_expired": True}, {'type':"checkbox",'checked': True, "text": "popa"}]
-#     })
-
-# print(t.dump_to_dict())
 
 

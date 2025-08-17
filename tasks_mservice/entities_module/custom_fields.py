@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from interfaces import JSON_interface
+from entities_module.interfaces import JSON_interface
 
 custom_fields = {} # Class registry
 
