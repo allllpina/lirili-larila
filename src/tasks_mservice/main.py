@@ -1,58 +1,60 @@
-from entities_module import *
-from pymongo import AsyncMongoClient
 import asyncio
+
+from entities_module.entities import Board, Page, Project, Task
+from pymongo import AsyncMongoClient
+
 # Temporary vars
-DATABASE_HOST = 'localhost'
+DATABASE_HOST = "localhost"
 DATABASE_PORT = 27017
-DATABASE_NAME = 'entities'
+DATABASE_NAME = "entities"
 client = AsyncMongoClient(DATABASE_HOST, DATABASE_PORT)
 db = client.get_database("test")
+
+
 async def main():
-#     task = await Task.from_template(template={
-#         "_id":"2768aaa0-4872-4c4e-a31d-ab492c0d428f",
-#         "board_id": "ef6c7ce2-5af5-457c-a803-9dd35f725c54",
-#         "project_id": "a0f87369-9c36-417d-bfec-764f65332733",
-#         "project_id": 'aslkdfja;l',
-#         "name": "title",
-#         "description": "",
-#         "collaborators": [{"usr_id": 1, "role": "loh", "salary": 0}],
-#         "price": -1,
-#         "priority":"high",
-#         "status": "done",
-#         "tags": ["tag1", "tag2", "tag3"],
-#         "time_to_complete" : -1,
-#         "date_of_creation": "04-08-2025 16:15:56",
-#         "custom_fields": [{"type": "checkbox", 'checked': True, "text": "slakjfalksjdf"}]
-#     })
+    #     task = await Task.from_template(template={
+    #         "_id":"2768aaa0-4872-4c4e-a31d-ab492c0d428f",
+    #         "board_id": "ef6c7ce2-5af5-457c-a803-9dd35f725c54",
+    #         "project_id": "a0f87369-9c36-417d-bfec-764f65332733",
+    #         "project_id": 'aslkdfja;l',
+    #         "name": "title",
+    #         "description": "",
+    #         "collaborators": [{"usr_id": 1, "role": "loh", "salary": 0}],
+    #         "price": -1,
+    #         "priority":"high",
+    #         "status": "done",
+    #         "tags": ["tag1", "tag2", "tag3"],
+    #         "time_to_complete" : -1,
+    #         "date_of_creation": "04-08-2025 16:15:56",
+    #         "custom_fields": [{"type": "checkbox", 'checked': True, "text": "slakjfalksjdf"}]
+    #     })
 
     # task = await Task.from_db('f4ff2ec4-0790-467e-8b80-7119dd1aacc4', db)
 
     # print(task.dump_to_dict())
 
-#     collection = db.get_collection('tasks')
+    #     collection = db.get_collection('tasks')
 
+    #     # task = Task(template = collection.find_one({"_id": "f4ff2ec4-0790-467e-8b80-7119dd1aacc4"}))
+    #     task = await Task.from_db(id = "f4ff2ec4-0790-467e-8b80-7119dd1aacc4", db = db)
+    #     print(task.dump_to_dict())
 
-#     # task = Task(template = collection.find_one({"_id": "f4ff2ec4-0790-467e-8b80-7119dd1aacc4"}))
-#     task = await Task.from_db(id = "f4ff2ec4-0790-467e-8b80-7119dd1aacc4", db = db)
-#     print(task.dump_to_dict())
-
-
-
-
-
-
-    board = await Board.from_template(template={
+    board = await Board.from_template(
+        template={
             "_id": "ef6c7ce2-5af5-457c-a803-9dd35f725c54",
             "project_id": 1,
             "page_id": 1,
             "name": "board-1",
             "description": "optional",
-            "priority": "high", 
+            "priority": "high",
             "date_of_creation": "04-08-2025 16:15:56",
-            "tasks": ["f4ff2ec4-0790-467e-8b80-7119dd1aacc4"]    
-        }, db=db)
+            "tasks": ["f4ff2ec4-0790-467e-8b80-7119dd1aacc4"],
+        },
+        db=db,
+    )
 
     print(board.dump_to_dict())
+
 
 # page = Page(template =  {
 #         "_id": "da00cedd-13d1-4025-a3de-4d6d847ec0e5",
@@ -66,7 +68,7 @@ async def main():
 #         "page_id": 1,
 #         "name": "board-1",
 #         "description": "optional",
-#         "priority": "high", 
+#         "priority": "high",
 #         "date_of_creation": "04-08-2025 16:15:56",
 #         "tasks": [{
 #         "_id":"2768aaa0-4872-4c4e-a31d-ab492c0d428f",
@@ -81,7 +83,7 @@ async def main():
 #         "time_to_complete" : -1,
 #         "date_of_creation": "04-08-2025 16:15:56",
 #         "custom_fields": [{"type": "checkbox", 'checked': True, "text": "slakjfalksjdf"}]
-#     }]    
+#     }]
 #     }]
 #     })
 
@@ -108,7 +110,7 @@ async def main():
 #         "page_id": "da00cedd-13d1-4025-a3de-4d6d847ec0e5",
 #         "name": "board-1",
 #         "description": "optional",
-#         "priority": "high", 
+#         "priority": "high",
 #         "date_of_creation": "04-08-2025 16:15:56",
 #         "tasks": [{
 #         "_id":"2768aaa0-4872-4c4e-a31d-ab492c0d428f",
@@ -124,7 +126,7 @@ async def main():
 #         "time_to_complete" : -1,
 #         "date_of_creation": "04-08-2025 16:15:56",
 #         "custom_fields": [{"type": "checkbox", 'checked': True, "text": "slakjfalksjdf"}]
-# }]    
+# }]
 #     }]
 # }]
 # })
