@@ -1,0 +1,16 @@
+-e .
+
+"passlib[bcrypt]"
+typing
+SQLAlchemy
+pymongo
+pika
+datetime
+"fastapi[standart]"
+black
+isort
+flake8
+pyright
+mypy
+cryptography
+pyjwt
