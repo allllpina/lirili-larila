@@ -33,10 +33,14 @@ class CustomField(JSON_interface):
                     setattr(self, key, value)
                 else:
                     raise TypeError(
-                        f"[ERR] {self.__class__.__name__} have a wrong type {value, type, type(value)}!"
+                        "[ERR] {} has wrong type: expected {}, got {}!"
+                        .format(self.__class__.__name__, type, type(value))
                     )
         else:
-            raise ValueError(f"[Err] {self.__class__.__name__} got a wrong template!")
+            raise ValueError(
+                "[Err] {} got a wrong template!"
+                .format(self.__class__.__name__)
+            )
 
     def dump_to_dict(self):
         return self.__dict__
@@ -52,7 +56,8 @@ class CustomField(JSON_interface):
 # {"class": "deadline_date"}
 @register_class("deadline_date")
 class Deadline(CustomField):
-    """Deadline that takes dict template as follows: {'type': 'deadline', 'date': str, 'is_expired': bool}"""
+    """Deadline that takes dict template as follows:
+    {'type': 'deadline', 'date': str, 'is_expired': bool}"""
 
     __necessary_keys__: dict[str, type] = {"date": str, "is_expired": bool}
 
@@ -61,24 +66,36 @@ class Deadline(CustomField):
         self.type = "deadline_date"
 
     def parse_dict(self, template):
-        """CustomField.parse_dict() overloading for realization computing field"""
+        """CustomField.parse_dict() overloading
+        for realization computing field"""
         if self.check_template(
             template=template, necessary_keys=Deadline.__necessary_keys__
         ):
             self.date = template["date"]
             self.is_expired = self.expiration_check()
         else:
-            raise ValueError(f"[Err] {self.__class__.__name__} got a wrong template!")
+            raise ValueError(
+                "[Err] {} got a wrong template!"
+                .format(self.__class__.__name__)
+            )
 
     def expiration_check(self) -> bool:
         """Method that matches current date and deadline date"""
-        return datetime.strptime(self.date, "%d-%m-%Y %H:%M:%S") < datetime.now()
+        return (
+            datetime.strptime(
+                self.date,
+                "%d-%m-%Y %H:%M:%S"
+            )
+            < datetime.now()
+        )
 
 
 # {"class": "checkbox"}
 @register_class("checkbox")
 class Checkbox(CustomField):
-    """Checkbox that takes dict template as follows: {'type': 'checkbox', 'checked': bool, 'text': str}"""
+    """Checkbox that takes dict template as follows:
+    {'type': 'checkbox', 'checked': bool, 'text': str}
+    """
 
     __necessary_keys__: dict[str, type] = {"checked": bool, "text": str}
 
@@ -90,7 +107,8 @@ class Checkbox(CustomField):
 # {"class": "text"}
 @register_class("text")
 class Text(CustomField):
-    """Text that takes dict template as follows: {'type': 'text', 'text': str}"""
+    """Text that takes dict template as follows:
+    {'type': 'text', 'text': str}"""
 
     __necessary_keys__: dict[str, type] = {"text": str}
 
@@ -102,7 +120,8 @@ class Text(CustomField):
 # {"class": "dropdown"}
 @register_class("dropdown")
 class Dropdown(CustomField):
-    """Dropdown that takes dict template as follows: {'type': 'dropdown', 'elements': list[str], 'index_of_selected': int}"""
+    """Dropdown that takes dict template as follows:
+    {'type': 'dropdown', 'elements': list[str], 'index_of_selected': int}"""
 
     __necessary_keys__: dict[str, type] = {
         "elements": list[str],
