@@ -185,14 +185,16 @@ class Task(BaseEntity):
             self.status: str = template["status"]
             self.tags: list[str] = template["tags"]
 
-            self.price: float = template["price"] if (template["price"] > 0) else None
+            self.price: float = (
+                template["price"] if (template["price"] is not None) else -1
+            )
             self.time_to_complete: float = (
                 template["time_to_complete"]
-                if (template["time_to_complete"] > 0)
-                else None
+                if (template["time_to_complete"] is not None)
+                else -1
             )
             self.priority: str = (
-                template["priority"] if (template["priority"] != "None") else None
+                template["priority"] if template["priority"] is not None else -1
             )
 
             self.custom_fields: list[CustomField] = []
@@ -455,7 +457,7 @@ class Project(BaseEntity):
             self.name: str = template["name"]
             self.description: str = template["description"]
             self.collaborators: list[dict] = template["collaborators"]
-            self.price: int = template["price"]
+            self.price: int = template["price"] if template["price"] is not None else -1
 
             self.pages: list[Page] = []
             pages = template.get("pages") or []
