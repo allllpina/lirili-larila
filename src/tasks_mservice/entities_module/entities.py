@@ -1,15 +1,16 @@
 import uuid
 from datetime import datetime
 
+from entities_module.custom_fields import CustomField, custom_fields
+from entities_module.interfaces import JSON_interface
+
 # from pymongo import AsyncMongoClient
 from pymongo.database import Database
-
-from entities_module.interfaces import JSON_interface
-from entities_module.custom_fields import custom_fields, CustomField
 
 
 def fields(all_fields: dict[str, type], updatable_fields: dict[str, type]):
     """Decorator which adds allowed attributes to change in class"""
+
     def decorator(cls: BaseEntity):
         cls.__updatable_fields__ = updatable_fields
         cls.__fields__ = all_fields
@@ -20,6 +21,7 @@ def fields(all_fields: dict[str, type], updatable_fields: dict[str, type]):
 
 class BaseEntity(JSON_interface):
     """Base class for entities"""
+
     # all fields
     __fields__: dict[str, type] = {}
     # all allowed attributes to be changed
@@ -56,6 +58,27 @@ class BaseEntity(JSON_interface):
         except RuntimeError:
             RuntimeError("Something wrong with database")
 
+    async def write_to_db(self):
+        try:
+            collection = self.__db__.get_collection(self.__collection__)
+            res = await collection.find_one({"_id": getattr(self, "_id")})
+
+            await self.pre_write()
+
+            if res:
+                await collection.replace_one(
+                    {"_id": getattr(self, "_id")}, self.dump_to_dict()
+                )
+            else:
+                await collection.insert_one(self.dump_to_dict())
+
+        except RuntimeError:
+            RuntimeError("Something wrong with database")
+
+    async def pre_write(self):
+        """Hook that used to make database writing flexible in child classes"""
+        pass
+
     def check_template(self, template: dict, necessary_keys: list):
         """Method which checks if template has a valid structure"""
         for key in necessary_keys:
@@ -63,68 +86,69 @@ class BaseEntity(JSON_interface):
                 return False
         return True
 
-    def update(self, **kwargs):
+    async def update(self, **kwargs):
         """Method that allows to change attribute values
         (only ones that allowed to)"""
         for key, value in kwargs.items():
             if key not in self.__updatable_fields__:
                 raise AttributeError(
-                    "Field '{}' is not allowed to be updated!"
-                    .format(key)
+                    "Field '{}' is not allowed to be updated!".format(key)
                 )
 
             expected_type = self.__updatable_fields__[key]
             if value is not None and not isinstance(value, expected_type):
                 raise TypeError(
-                    "Field '{}' must be type {}, got {}"
-                    .format(key, expected_type.__name__, type(value).__name__)
+                    "Field '{}' must be type {}, got {}".format(
+                        key, expected_type.__name__, type(value).__name__
+                    )
                 )
 
             setattr(self, key, value)
+
+        await self.write_to_db()
         self.update_log(self.__class__.__name__)
 
     # TO CHANGE IN DEVELOPMENT
     def update_log(self, name: str):
         """Method that logging all updates"""
         print(
-            "[LOG] {} was uptated {}"
-            .format(name, datetime.strftime(
-                datetime.now(),
-                "%d-%m-%y %H:%M:%S"
-                )
+            "[LOG] {} was uptated {}".format(
+                name, datetime.strftime(datetime.now(), "%d-%m-%y %H:%M:%S")
             )
         )
 
 
-@fields(all_fields={
-    "_id": str,
-    "board_id": str,
-    "project_id": str,
-    "date_of_creation": str,
-    "name": str,
-    "description": str,
-    "status": str,
-    "tags": list[str],
-    "price": float,
-    "priority": str,
-    "time_to_complete": float,
-    "custom_fields": list[CustomField],
-    "collaborators": list[int]
-},
-        updatable_fields={
-    "name": str,
-    "board_id": str,
-    "description": str,
-    "status": str,
-    "tags": list[str],
-    "price": float,
-    "priority": str,
-    "time_to_complete": float,
-    "custom_fields": list[CustomField],
-    "collaborators": list[int]
-})
+@fields(
+    all_fields={
+        "_id": str,
+        "board_id": str,
+        "project_id": str,
+        "date_of_creation": str,
+        "name": str,
+        "description": str,
+        "status": str,
+        "tags": list[str],
+        "price": float,
+        "priority": str,
+        "time_to_complete": float,
+        "custom_fields": list[CustomField],
+        "collaborators": list[int],
+    },
+    updatable_fields={
+        "name": str,
+        "board_id": str,
+        "description": str,
+        "status": str,
+        "tags": list[str],
+        "price": float,
+        "priority": str,
+        "time_to_complete": float,
+        "custom_fields": list[CustomField],
+        "collaborators": list[int],
+    },
+)
 class Task(BaseEntity):
-    __collection__ = 'tasks'
+    __collection__ = "tasks"
     """Class for 'task' instance, contains 'custom fields' instances"""
 
     @property
@@ -138,90 +162,79 @@ class Task(BaseEntity):
 
     def add_custom_field(self, template: dict) -> None:
         temp = template.copy()
-        field_type = temp.pop('type')
+        field_type = temp.pop("type")
         custom_field = custom_fields.get(field_type, None)
 
         if custom_field is None:
             print(field_type)
-            raise ValueError(
-                "Template for custom fiels creation is incorrect!"
-            )
+            raise ValueError("Template for custom fiels creation is incorrect!")
 
         self.custom_fields.append(custom_field(temp))
 
     async def parse_dict(self, template: dict):
-        if self.check_template(
-            template=template, necessary_keys=self.__fields__
-        ):
+        if self.check_template(template=template, necessary_keys=self.__fields__):
             # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
-            self.board_id: str = template['board_id']
+            self.board_id: str = template["board_id"]
             self.project_id: str = template["project_id"]
-            self.date_of_creation: str = template['date_of_creation']
+            self.date_of_creation: str = template["date_of_creation"]
 
-            self.name: str = template['name']
-            self.description: str = template['description']
-            self.collaborators: list[dict] = template['collaborators']
-            self.status: str = template['status']
-            self.tags: list[str] = template['tags']
+            self.name: str = template["name"]
+            self.description: str = template["description"]
+            self.collaborators: list[dict] = template["collaborators"]
+            self.status: str = template["status"]
+            self.tags: list[str] = template["tags"]
 
-            self.price: float = (
-                template['price'] if (
-                    template['price'] > 0
-                ) else None
-            )
+            self.price: float = template["price"] if (template["price"] > 0) else None
             self.time_to_complete: float = (
-                template['time_to_complete'] if (
-                    template['time_to_complete'] > 0
-                ) else None
+                template["time_to_complete"]
+                if (template["time_to_complete"] > 0)
+                else None
             )
             self.priority: str = (
-                template['priority'] if (
-                    template['priority'] != "None"
-                ) else None
+                template["priority"] if (template["priority"] != "None") else None
             )
 
             self.custom_fields: list[CustomField] = []
-            for field in template['custom_fields']:
+            for field in template["custom_fields"]:
                 self.add_custom_field(field)
 
         else:
-            raise ValueError(
-                "Template for entity creation is incorrect!"
-            )
+            raise ValueError("Template for entity creation is incorrect!")
 
     def dump_to_dict(self):
-        ret: dict = self.__dict__
-        custom_fields: list[str] = []
+        ret: dict = self.__dict__.copy()
+        custom_fields_: list[str] = []
 
         if self.custom_fields:
-            custom_fields = [c_f.dump_to_dict() for c_f in self.custom_fields]
+            custom_fields_ = [c_f.dump_to_dict() for c_f in self.custom_fields]
 
-        ret['custom_fields'] = custom_fields
-        ret.pop('__db__', None)
+        ret["custom_fields"] = custom_fields_
+        ret.pop("__db__", None)
 
         if isinstance(ret, dict):
-            return self.__dict__
+            return ret
         else:
             raise TypeError("Return value is not dictionary!")
 
 
-@fields(all_fields={
-    "_id": str,
-    "page_id": str,
-    "name": str,
-    "description": str,
-    "priority": str,
-    "date_of_creation": str,
-    "tasks": list[Task]
-},
-        updatable_fields={
-    "page_id": str,
-    "name": str,
-    "description": str,
-    "priority": str,
-    "tasks": list[Task]
-        }
+@fields(
+    all_fields={
+        "_id": str,
+        "page_id": str,
+        "name": str,
+        "description": str,
+        "priority": str,
+        "date_of_creation": str,
+        "tasks": list[Task],
+    },
+    updatable_fields={
+        "page_id": str,
+        "name": str,
+        "description": str,
+        "priority": str,
+        "tasks": list[Task],
+    },
 )
 class Board(BaseEntity):
     __collection__ = "boards"
@@ -245,7 +258,7 @@ class Board(BaseEntity):
         "custom_fields": list[dict] (custom field templates),
         "collaborators": list[int]}} or task_id(soon)"""
         if all(isinstance(task, str) for task in tasks):
-            '''Huge problem indeed, we need database first'''
+            """Huge problem indeed, we need database first"""
             # Database needed
             for id in tasks:
                 self.tasks.append(await Task.from_db(id=id, db=self.__db__))
@@ -258,22 +271,28 @@ class Board(BaseEntity):
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
+    async def pre_write(self):
+        try:
+            if self.tasks:
+                for task in self.tasks:
+                    await task.write_to_db()
+        except RuntimeError:
+            RuntimeError("Task writing to db went wrong!")
+
     async def parse_dict(self, template: dict):
-        if self.check_template(
-            template=template, necessary_keys=self.__fields__
-        ):
+        if self.check_template(template=template, necessary_keys=self.__fields__):
             # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
 
-            self.page_id: str = template['page_id']
-            self.date_of_creation: str = template['date_of_creation']
+            self.page_id: str = template["page_id"]
+            self.date_of_creation: str = template["date_of_creation"]
 
-            self.name: str = template['name']
-            self.description: str = template['description']
-            self.priority: str = template['priority']
+            self.name: str = template["name"]
+            self.description: str = template["description"]
+            self.priority: str = template["priority"]
 
             self.tasks: list[Task] = []
-            tasks = template.get('tasks') or []
+            tasks = template.get("tasks") or []
             await self.add_tasks(tasks=tasks)
         else:
             raise ValueError("Template for entity creation is incorrect!")
@@ -284,8 +303,8 @@ class Board(BaseEntity):
         if self.tasks:
             tasks = [task.id for task in self.tasks]
 
-        ret['tasks'] = tasks
-        ret.pop('__db__', None)
+        ret["tasks"] = tasks
+        ret.pop("__db__", None)
 
         if isinstance(ret, dict):
             return self.__dict__
@@ -293,19 +312,16 @@ class Board(BaseEntity):
             raise TypeError("Return value is not dictionary!")
 
 
-@fields(all_fields={
-    "_id": str,
-    "project_id": str,
-    "name": str,
-    "description": str,
-    "date_of_creation": str,
-    "boards": list[Board]
-},
-        updatable_fields={
-    "name": str,
-    "description": str,
-    "boards": list[Board]
-    }
+@fields(
+    all_fields={
+        "_id": str,
+        "project_id": str,
+        "name": str,
+        "description": str,
+        "date_of_creation": str,
+        "boards": list[Board],
+    },
+    updatable_fields={"name": str, "description": str, "boards": list[Board]},
 )
 class Page(BaseEntity):
     __collection__ = "pages"
@@ -334,21 +350,27 @@ class Page(BaseEntity):
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
+    async def pre_write(self):
+        try:
+            if self.boards:
+                for board in self.boards:
+                    await board.write_to_db()
+        except RuntimeError:
+            RuntimeError("Board writing to db went wrong!")
+
     async def parse_dict(self, template: dict):
-        if self.check_template(
-            template=template, necessary_keys=self.__fields__
-        ):
+        if self.check_template(template=template, necessary_keys=self.__fields__):
             # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
 
-            self.project_id: str = template['project_id']
-            self.date_of_creation: str = template['date_of_creation']
+            self.project_id: str = template["project_id"]
+            self.date_of_creation: str = template["date_of_creation"]
 
-            self.name: str = template['name']
-            self.description: str = template['description']
+            self.name: str = template["name"]
+            self.description: str = template["description"]
 
             self.boards: list[Board] = []
-            boards = template.get('boards') or []
+            boards = template.get("boards") or []
             await self.add_boards(board_ids=boards)
 
         else:
@@ -361,7 +383,7 @@ class Page(BaseEntity):
             boards = [board.id for board in self.boards]
 
         ret["boards"] = boards
-        ret.pop('__db__', None)
+        ret.pop("__db__", None)
 
         if isinstance(ret, dict):
             return self.__dict__
@@ -369,23 +391,24 @@ class Page(BaseEntity):
             raise TypeError("Return value is not dictionary!")
 
 
-@fields(all_fields={
-    "_id": str,
-    "admin_id": int,
-    "name": str,
-    "description": str,
-    "collaborators": list[dict],
-    "price": int,
-    "date_of_creation": str,
-    "pages": list[str]
-},
-        updatable_fields={
-    "name": str,
-    "description": str,
-    "collaborators": list[dict],
-    "price": int,
-    "pages": list[str]
-        }
+@fields(
+    all_fields={
+        "_id": str,
+        "admin_id": int,
+        "name": str,
+        "description": str,
+        "collaborators": list[dict],
+        "price": int,
+        "date_of_creation": str,
+        "pages": list[str],
+    },
+    updatable_fields={
+        "name": str,
+        "description": str,
+        "collaborators": list[dict],
+        "price": int,
+        "pages": list[str],
+    },
 )
 class Project(BaseEntity):
     __collection__ = "pages"
@@ -413,20 +436,26 @@ class Project(BaseEntity):
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
+    async def pre_write(self):
+        try:
+            if self.pages:
+                for page in self.pages:
+                    await page.write_to_db()
+        except RuntimeError:
+            RuntimeError("Page writing to db went wrong!")
+
     async def parse_dict(self, template: dict):
-        if self.check_template(
-            template=template, necessary_keys=self.__fields__
-        ):
+        if self.check_template(template=template, necessary_keys=self.__fields__):
             # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
 
-            self.admin_id: int = template['admin_id']
-            self.date_of_creation: str = template['date_of_creation']
+            self.admin_id: int = template["admin_id"]
+            self.date_of_creation: str = template["date_of_creation"]
 
-            self.name: str = template['name']
-            self.description: str = template['description']
-            self.collaborators: list[dict] = template['collaborators']
-            self.price: int = template['price']
+            self.name: str = template["name"]
+            self.description: str = template["description"]
+            self.collaborators: list[dict] = template["collaborators"]
+            self.price: int = template["price"]
 
             self.pages: list[Page] = []
             pages = template.get("pages") or []
@@ -441,8 +470,8 @@ class Project(BaseEntity):
         if self.pages:
             pages = [page.id for page in self.pages]
 
-        ret['pages'] = pages
-        ret.pop('__db__', None)
+        ret["pages"] = pages
+        ret.pop("__db__", None)
 
         if isinstance(ret, dict):
             return self.__dict__

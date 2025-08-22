@@ -1,6 +1,6 @@
 import asyncio
 
-from entities_module.entities import Board, Page, Project, Task
+from entities_module.entities import Task
 from pymongo import AsyncMongoClient
 
 # Temporary vars
@@ -29,9 +29,9 @@ async def main():
     #         "custom_fields": [{"type": "checkbox", 'checked': True, "text": "slakjfalksjdf"}]
     #     })
 
-    # task = await Task.from_db('f4ff2ec4-0790-467e-8b80-7119dd1aacc4', db)
-
-    # print(task.dump_to_dict())
+    task = await Task.from_db("f4ff2ec4-0790-467e-8b80-7119dd1aacc4", db)
+    await task.update(name="title", description="some_desc")
+    print(task.dump_to_dict())
 
     #     collection = db.get_collection('tasks')
 
@@ -39,21 +39,21 @@ async def main():
     #     task = await Task.from_db(id = "f4ff2ec4-0790-467e-8b80-7119dd1aacc4", db = db)
     #     print(task.dump_to_dict())
 
-    board = await Board.from_template(
-        template={
-            "_id": "ef6c7ce2-5af5-457c-a803-9dd35f725c54",
-            "project_id": 1,
-            "page_id": 1,
-            "name": "board-1",
-            "description": "optional",
-            "priority": "high",
-            "date_of_creation": "04-08-2025 16:15:56",
-            "tasks": ["f4ff2ec4-0790-467e-8b80-7119dd1aacc4"],
-        },
-        db=db,
-    )
+    # board = await Board.from_template(
+    #     template={
+    #         "_id": "ef6c7ce2-5af5-457c-a803-9dd35f725c54",
+    #         "project_id": 1,
+    #         "page_id": 1,
+    #         "name": "board-1",
+    #         "description": "optional",
+    #         "priority": "high",
+    #         "date_of_creation": "04-08-2025 16:15:56",
+    #         "tasks": ["f4ff2ec4-0790-467e-8b80-7119dd1aacc4"],
+    #     },
+    #     db=db,
+    # )
 
-    print(board.dump_to_dict())
+    # print(board.dump_to_dict())
 
 
 # page = Page(template =  {
