@@ -1,0 +1,14 @@
+dotenv
+psycopg2-binary
+uvicorn
+passlib[bcrypt]
+typing
+SQLAlchemy
+datetime
+fastapi[standart]
+black
+isort
+flake8
+pyright
+cryptography
+pyjwt
