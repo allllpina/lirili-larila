@@ -1,98 +1,89 @@
 ## PostgreSQL and Authentication
 
-More details on how to customize the installation and the compose file can be found [here (PostgreSQL)](https://hub.docker.com/_/postgres) and [here (pgAdmin)](https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html).
-
 Project structure:
-docker exec -it pg-test psql -U pg-test
+
 project/
 │──.git/
-│──.ssh/
-│──src/
-│──venv/
 │──.gitignore
-│──README.md
-│──pyproject.toml
-│──requirements.txt
-
-src/
+│──rabbitmq_test/
 │──auth/
-│ │── authentication/
-│ ├── docker-compose.yml
-│ ├── .env
-│ ├── README.md
-│── rabbitmq_test/
-│── tasks_mservice/
-│──**init**.py
+│──tasks_mservice/
+│──README.md
+└──pyproject.toml
 
-authentication/
-│──**init**.py
-│── main.py
-│── auth/
-│ │──**init**.py
-│ ├── routes.py
-│ ├── service.py
-│── users/
-│ │──**init**.py
-│ ├── routes.py
-│ ├── service.py
-│── database.py
-│── models.py
-│── schemas.py
-│── dependency.py
+auth/
+├── containers/
+│ └── Dockerfile
+│── src/
+│ │── \_\_init\_\_.py
+│ ├── app/
+│ │ │── \_\_init\_\_.py
+│ │ └── main.py
+│ ├── db/
+│ │ │── \_\_init\_\_.py
+│ │ │── database.py
+│ │ │── models.py
+│ │ └── schemas.py
+│ ├── router/
+│ │ │── \_\_init\_\_.py
+│ │ └── posts.py
+│ └── .env
+├── requirements.txt
+├── docker-compose.yml
+└── README.md
 
-[docker*compose.yml*](docker_compose.yml)
+[docker-compose.yml](docker-compose.yml)
 
 ```yaml
 services:
   postgres:
-    container_name: postgres
     image: postgres:latest
+    container_name: pg-test
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PW}
-      - POSTGRES_DB=${POSTGRES_DB} #optional (specify default database instead of $POSTGRES_DB)
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
-    restart: always
+
     volumes:
-      # - ./db/init:/docker-entrypoint-initdb.d  # SQL скрипти чи .sh файли виконуються на старті
-      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      dockerfile: containers/Dockerfile
+    ports:
+      - "8000:80"
+    depends_on:
+      - postgres
+    volumes:
+      - ./:/src:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
 volumes:
-  postgres-data:
+  postgres:
 ```
 
 ## Configuration
 
 ### .env
 
-Before deploying this setup, you need to configure the following values in the [.env](.env) file.
+Before deploying this setup, you need to configure the following values in the .env file.
 
-- POSTGRES_USER
-- POSTGRES_PW
-- POSTGRES_DB (can be default value)
+```.env
+SECRET_KEY=your-secret-key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+POSTGRES_USER=viole
+POSTGRES_DB=pg-test
+POSTGRES_PASSWORD=passwd
+```
 
 ## Deploy with docker compose
 
-```shell
-$ docker compose up
-Starting postgres ... done
-```
-
-## Expected result
-
-Check containers are running:
-
-```
-$ docker ps
-CONTAINER ID   IMAGE                           COMMAND                  CREATED             STATUS                 PORTS                                                                                  NAMES
-849c5f48f784   postgres:latest                 "docker-entrypoint.s…"   9 minutes ago       Up 9 minutes           0.0.0.0:5432->5432/tcp, :::5432->5432/tcp                                              postgres
-```
-
-Stop the containers with
-
-```shell
-$ docker compose down
-# To delete all data run:
-$ docker compose down -v
+```bash
+docker-compose up
 ```
