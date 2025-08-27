@@ -72,6 +72,8 @@ class BaseEntity(JSON_interface):
             else:
                 await collection.insert_one(self.dump_to_dict())
 
+            return True
+
         except RuntimeError:
             RuntimeError("Something wrong with database")
 
@@ -81,10 +83,13 @@ class BaseEntity(JSON_interface):
 
     def check_template(self, template: dict, necessary_keys: list):
         """Method which checks if template has a valid structure"""
-        for key in necessary_keys:
-            if key not in template.keys():
-                return False
-        return True
+        try:
+            for key in necessary_keys:
+                if key not in template.keys():
+                    return False
+            return True
+        except ValueError:
+            ValueError("Most likely, function couldn't get template")
 
     async def update(self, **kwargs):
         """Method that allows to change attribute values
@@ -373,7 +378,7 @@ class Page(BaseEntity):
 
             self.boards: list[Board] = []
             boards = template.get("boards") or []
-            await self.add_boards(board_ids=boards)
+            await self.add_boards(boards=boards)
 
         else:
             raise ValueError("Template for entity creation is incorrect!")
@@ -413,7 +418,7 @@ class Page(BaseEntity):
     },
 )
 class Project(BaseEntity):
-    __collection__ = "pages"
+    __collection__ = "Projects"
     """Class for 'project' instance, contains 'page' instances and workers"""
 
     @property
@@ -461,7 +466,7 @@ class Project(BaseEntity):
 
             self.pages: list[Page] = []
             pages = template.get("pages") or []
-            await self.add_pages(page_ids=pages)
+            await self.add_pages(pages=pages)
 
         else:
             raise ValueError("Template for entity creation is incorrect!")

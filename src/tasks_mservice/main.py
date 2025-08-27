@@ -1,3 +1,20 @@
+from config import HTML_PATH
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from routers.projects import projects_router
+
+app = FastAPI()
+
+app.include_router(prefix="/projects", router=projects_router)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    with open(f"{HTML_PATH}greetings.html") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content)
+
+
 # import asyncio
 
 # Temporary vars
