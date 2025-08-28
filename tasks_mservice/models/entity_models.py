@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import ClassVar, List, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -11,6 +11,16 @@ class Collaborator(BaseModel):
     user_id: int
     role: str
     salary: float
+
+
+class EditModel:
+    fields_to_check: ClassVar[list[str]] = []
+
+    @model_validator(mode="before")
+    def check_at_least_one(cls, values):
+        if not any(values.get(field) is not None for field in cls.fields_to_check):
+            raise ValueError("At least one editable field must be provided")
+        return values
 
 
 class TaskTemplate(MainCRUDModel):
@@ -38,6 +48,15 @@ class BoardTemplate(MainCRUDModel):
     tasks: List[Union[str | TaskTemplate]]
 
 
+class PageEdit(MainCRUDModel, EditModel):
+    fields_to_check: ClassVar[list[str]] = ["name", "description", "boards"]
+
+    id: str = Field(alias="_id")
+    name: str
+    description: str
+    boards: List[Union[str | BoardTemplate]]
+
+
 class PageTemplate(MainCRUDModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
@@ -47,30 +66,21 @@ class PageTemplate(MainCRUDModel):
     boards: List[Union[str | BoardTemplate]]
 
 
-class ProjectEdit(MainCRUDModel):
+class ProjectEdit(MainCRUDModel, EditModel):
+    fields_to_check: ClassVar[list[str]] = [
+        "name",
+        "description",
+        "collaborators",
+        "price",
+        "pages",
+    ]
+
     id: str = Field(alias="_id")
-    admin_id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
     collaborators: Optional[List[dict]] = None
     price: Optional[float] = None
-    date_of_creation: Optional[str] = None
     pages: Optional[List[Union[str | PageTemplate]]] = None
-
-    @model_validator(mode="before")
-    def check_at_least_one(cls, values):
-        fields_to_check = [
-            "admin_id",
-            "name",
-            "description",
-            "collaborators",
-            "price",
-            "date_of_creation",
-            "pages",
-        ]
-        if not any(values.get(field) is not None for field in fields_to_check):
-            raise ValueError("At least one editable field must be provided")
-        return values
 
 
 class ProjectTemplate(MainCRUDModel):
