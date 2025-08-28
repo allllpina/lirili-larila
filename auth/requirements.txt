@@ -9,6 +9,7 @@ fastapi[standart]
 black
 isort
 flake8
-pyright
+pylint
+jedi
 cryptography
 pyjwt

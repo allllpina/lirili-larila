@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import timestamp
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -6,10 +6,11 @@ from pydantic import BaseModel
 
 class PostBase(BaseModel):
     id: UUID
-    content: str
-    title: str
-    published: bool
-    created_at: datetime
+    username: str
+    email: str
+    password_hash: str
+    token_expires_at: timestamp
+    token: str
 
     class Config:
         orm_mode = True
