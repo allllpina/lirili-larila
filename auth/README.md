@@ -2,6 +2,7 @@
 
 Project structure:
 
+```
 project/
 │──.git/
 │──.gitignore
@@ -10,7 +11,9 @@ project/
 │──tasks_mservice/
 │──README.md
 └──pyproject.toml
+```
 
+```
 auth/
 ├── containers/
 │ └── Dockerfile
@@ -31,6 +34,7 @@ auth/
 ├── requirements.txt
 ├── docker-compose.yml
 └── README.md
+```
 
 [docker-compose.yml](docker-compose.yml)
 
