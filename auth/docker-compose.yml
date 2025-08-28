@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: pg-test
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      dockerfile: containers/Dockerfile
+    ports:
+      - "8000:80"
+    depends_on:
+      - postgres
+    volumes:
+      - ./:/src:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+volumes:
+  postgres:
