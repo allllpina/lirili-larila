@@ -23,6 +23,31 @@ class EditModel:
         return values
 
 
+class TaskEdit(MainCRUDModel, EditModel):
+    fields_to_check: ClassVar[list[str]] = [
+        "name",
+        "description",
+        "collaborators",
+        "price",
+        "priority",
+        "status",
+        "tags",
+        "time_to_complete",
+        "custom_fields",
+    ]
+
+    id: str = Field(alias="_id")
+    name: str
+    description: str
+    collaborators: List[Collaborator]
+    price: float
+    priority: str
+    status: str
+    tags: List[str]
+    time_to_complete: float
+    custom_fields: List[dict]
+
+
 class TaskTemplate(MainCRUDModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
@@ -36,6 +61,16 @@ class TaskTemplate(MainCRUDModel):
     time_to_complete: float
     date_of_creation: str
     custom_fields: List[dict]
+
+
+class BoardEdit(MainCRUDModel, EditModel):
+    fields_to_check: ClassVar[list[str]] = ["name", "description", "priority", "tasks"]
+
+    id: str = Field(alias="_id")
+    name: str
+    description: str
+    priority: str
+    tasks: List[Union[str | TaskTemplate]]
 
 
 class BoardTemplate(MainCRUDModel):

@@ -1,11 +1,17 @@
 from config import HTML_PATH
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from routers.boards import boards_router
+from routers.pages import pages_router
 from routers.projects import projects_router
+from routers.tasks import tasks_router
 
 app = FastAPI()
 
 app.include_router(prefix="/projects", router=projects_router)
+app.include_router(prefix="/pages", router=pages_router)
+app.include_router(prefix="/boards", router=boards_router)
+app.include_router(prefix="/tasks", router=tasks_router)
 
 
 @app.get("/", response_class=HTMLResponse)
