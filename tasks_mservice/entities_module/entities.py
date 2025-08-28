@@ -126,7 +126,6 @@ class BaseEntity(JSON_interface):
 @fields(
     all_fields={
         "_id": str,
-        "board_id": str,
         "project_id": str,
         "date_of_creation": str,
         "name": str,
@@ -141,7 +140,6 @@ class BaseEntity(JSON_interface):
     },
     updatable_fields={
         "name": str,
-        "board_id": str,
         "description": str,
         "status": str,
         "tags": list[str],
@@ -180,7 +178,6 @@ class Task(BaseEntity):
         if self.check_template(template=template, necessary_keys=self.__fields__):
             # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
-            self.board_id: str = template["board_id"]
             self.project_id: str = template["project_id"]
             self.date_of_creation: str = template["date_of_creation"]
 
@@ -228,7 +225,6 @@ class Task(BaseEntity):
 @fields(
     all_fields={
         "_id": str,
-        "page_id": str,
         "name": str,
         "description": str,
         "priority": str,
@@ -236,7 +232,6 @@ class Task(BaseEntity):
         "tasks": list[Task],
     },
     updatable_fields={
-        "page_id": str,
         "name": str,
         "description": str,
         "priority": str,
@@ -253,7 +248,6 @@ class Board(BaseEntity):
 
     async def add_tasks(self, tasks: list):
         """Adds 'task' instance to the 'board' instance via template:
-        {"board_id": str,
         "date_of_creation": str,
         "name": str,
         "description": str,
@@ -291,7 +285,6 @@ class Board(BaseEntity):
             # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
 
-            self.page_id: str = template["page_id"]
             self.date_of_creation: str = template["date_of_creation"]
 
             self.name: str = template["name"]
@@ -340,7 +333,6 @@ class Page(BaseEntity):
 
     async def add_boards(self, boards: list):
         """Adds 'board' instance to the 'task' instance via template:
-        {"page_id": str,
         "name": str,
         "description": str,
         "priority": str,

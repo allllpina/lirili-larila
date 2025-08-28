@@ -16,7 +16,6 @@ class Collaborator(BaseModel):
 class TaskTemplate(MainCRUDModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
-    board_id: str
     name: str
     description: str
     collaborators: List[Collaborator]
@@ -32,7 +31,6 @@ class TaskTemplate(MainCRUDModel):
 class BoardTemplate(MainCRUDModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
-    page_id: str
     name: str
     description: str
     priority: str
