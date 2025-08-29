@@ -17,7 +17,7 @@ services:
     networks:
       - default
 
-  auth:
+  backend:
     container_name: auth
     build:
       context: .

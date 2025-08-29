@@ -1,11 +1,12 @@
-from typing import Any
 from datetime import datetime
-from pydantic import BaseModel, UUID4, validator, EmailStr
+
+from pydantic import (UUID4, BaseModel, EmailStr, field_validator,
+                      model_validator)
 
 
 class UserBase(BaseModel):
     email: EmailStr
-    full_name: str
+    username: str
 
 
 class UserCreate(UserBase):
@@ -15,11 +16,11 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: UUID4
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
-    @validator("id")
-    def convert_to_str(cls, v, values, **kwargs):
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_to_str(cls, v):
         return str(v) if v else v
 
 
@@ -27,14 +28,11 @@ class UserRegister(UserBase):
     password: str
     confirm_password: str
 
-    @validator("confirm_password")
-    def verify_password_match(cls, v, values, **kwargs):
-        password = values.get("password")
-
-        if v != password:
+    @model_validator(mode="after")
+    def verify_password_match(self):
+        if self.password != self.confirm_password:
             raise ValueError("The two passwords did not match.")
-
-        return v
+        return self
 
 
 class UserLogin(BaseModel):
@@ -65,8 +63,7 @@ class BlackListToken(BaseModel):
     id: UUID4
     expire: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class MailBodySchema(BaseModel):
@@ -93,14 +90,11 @@ class PasswordResetSchema(BaseModel):
     password: str
     confirm_password: str
 
-    @validator("confirm_password")
-    def verify_password_match(cls, v, values, **kwargs):
-        password = values.get("password")
-
-        if v != password:
+    @model_validator(mode="after")
+    def verify_password_match(self):
+        if self.password != self.confirm_password:
             raise ValueError("The two passwords did not match.")
-
-        return v
+        return self
 
 
 class PasswordUpdateSchema(PasswordResetSchema):
@@ -110,20 +104,9 @@ class PasswordUpdateSchema(PasswordResetSchema):
 class OldPasswordErrorSchema(BaseModel):
     old_password: bool
 
-    @validator("old_password")
-    def check_old_password_status(cls, v, values, **kwargs):
+    @field_validator("old_password")
+    @classmethod
+    def check_old_password_status(cls, v):
         if not v:
-            raise ValueError("Old password is not corret")
-
-
-class ArticleCreateSchema(BaseModel):
-    title: str
-    content: str
-
-
-class ArticleListScheme(ArticleCreateSchema):
-    id: UUID4
-    author_id: UUID4
-
-    class Config:
-        orm_mode = True
+            raise ValueError("Old password is not correct")
+        return v

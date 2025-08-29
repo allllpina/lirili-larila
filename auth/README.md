@@ -15,25 +15,42 @@ project/
 
 ```
 auth/
-├── containers/
-│ └── Dockerfile
-│── src/
-│ │── \_\_init\_\_.py
-│ ├── app/
-│ │ │── \_\_init\_\_.py
-│ │ └── main.py
-│ ├── db/
-│ │ │── \_\_init\_\_.py
-│ │ │── database.py
-│ │ │── models.py
-│ │ └── schemas.py
-│ ├── router/
-│ │ │── \_\_init\_\_.py
-│ │ └── posts.py
-│ └── .env
-├── requirements.txt
-├── docker-compose.yml
-└── README.md
+├─ containers/
+│  └─ auth.Dockerfile
+├─ alembic/
+│  ├─ README
+│  ├─ env.py
+│  └─ script.py.mako
+├─ app/
+│  ├─ __init__.py
+│  ├─ main.py
+│  ├─ core/
+│  │  ├─ __init__.py
+│  │  ├─ config.py
+│  │  ├─ database.py
+│  │  ├─ dependency.py
+│  │  ├─ exceptions.py
+│  │  ├─ hash.py
+│  │  └─ jwt.py
+│  ├─ models/
+│  │  ├─ __init__.py
+│  │  └─ models.py
+│  ├─ routers/
+│  │  ├─ __init__.py
+│  │  └─ routers.py
+│  ├─ schemas/
+│  │  ├─ __init__.py
+│  │  └─ schemas.py
+│  └─ utils/
+│     ├─ __init__.py
+│     ├─ mail.py
+│     └─ time_utc_now.py
+├─ docker-compose.yml
+├─ start.sh
+├─ alembic.ini
+├─ README.md
+└─ requirements.txt
+
 ```
 
 [docker-compose.yml](docker-compose.yml)
@@ -41,33 +58,48 @@ auth/
 ```yaml
 services:
   postgres:
-    image: postgres:latest
-    container_name: pg-test
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    container_name: postgres
+    image: "postgres:15"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - "5432:5432"
-
+    env_file:
+      - ./.env
     volumes:
-      - ./postgres/data:/var/lib/postgresql/data
+      - "./pgsql:/var/lib/postgresql/data"
+    networks:
+      - default
 
-  app:
+  backend:
+    container_name: auth
     build:
       context: .
-      dockerfile: containers/Dockerfile
+      dockerfile: ./containers/auth.Dockerfile
+    restart: always
+    env_file:
+      - .env
     ports:
-      - "8000:80"
-    depends_on:
+      - "8000:8000"
+    links:
       - postgres
-    volumes:
-      - ./:/src:ro
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
 
 volumes:
-  postgres:
+  pgsql:
+    driver: local
 ```
 
 ## Configuration
@@ -77,17 +109,18 @@ volumes:
 Before deploying this setup, you need to configure the following values in the .env file.
 
 ```.env
-SECRET_KEY=your-secret-key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=test-db
 POSTGRES_USER=viole
-POSTGRES_DB=pg-test
 POSTGRES_PASSWORD=passwd
+DATABASE_URL=postgresql+asyncpg://viole:passwd@postgres:5432/test-db
+
+SECRET_KEY=725f2afa914ec7e08650a8b837f1d3ac6da3a5aeb9fa11ca0b007ee2fce75794
 ```
 
 ## Deploy with docker compose
 
 ```bash
-docker-compose up
+docker-compose up -d build
 ```

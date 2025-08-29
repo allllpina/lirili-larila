@@ -1,4 +1,4 @@
-from .database import SessionFactory
+from app.core.database import SessionFactory
 
 
 async def get_db():
