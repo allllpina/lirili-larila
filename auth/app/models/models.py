@@ -1,11 +1,12 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import select, ForeignKey, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
+from app.core.hash import verify_password
+from app.utils.time_utc_now import utcnow
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.database import Base
-from src.core.hash import verify_password
-from src.utils import utcnow
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class User(Base):
@@ -14,15 +15,13 @@ class User(Base):
         primary_key=True, index=True, default=uuid.uuid4
     )
     email: Mapped[str] = mapped_column(unique=True, index=True)
-    full_name: Mapped[str]
+    username: Mapped[str]
     password: Mapped[str]
     is_active: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=utcnow())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=utcnow(), server_onupdate=utcnow(), onupdate=utcnow()
     )
-
-    articles: Mapped[list["Article"]] = relationship(back_populates="author")
 
     @classmethod
     async def find_by_email(cls, db: AsyncSession, email: str):
@@ -45,24 +44,3 @@ class BlackListToken(Base):
     )
     expire: Mapped[datetime]
     created_at: Mapped[datetime] = mapped_column(server_default=utcnow())
-
-
-class Article(Base):
-    __tablename__ = "sessions"
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, index=True, default=uuid.uuid4
-    )
-    created_at: Mapped[datetime] = mapped_column(server_default=utcnow())
-    title: Mapped[str]
-    content: Mapped[str] = mapped_column(Text)
-
-    author_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE")
-    )
-    author: Mapped["User"] = relationship(back_populates="articles")
-
-    @classmethod
-    async def find_by_author(cls, db: AsyncSession, author: User):
-        query = select(cls).where(cls.author_id == author.id)
-        result = await db.execute(query)
-        return result.scalars().all()

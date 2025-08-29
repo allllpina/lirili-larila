@@ -1,30 +1,22 @@
-from typing import Annotated
 from datetime import datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Response, Cookie
+from app.core.dependencies import get_db
+from app.core.exceptions import (BadRequestException, ForbiddenException,
+                                 NotFoundException)
+from app.core.hash import get_password_hash, verify_password
+from app.core.jwt import (EXP, JTI, SUB, add_refresh_token_cookie,
+                          create_token_pair, decode_access_token, mail_token,
+                          refresh_token_state)
+from app.models import models
+from app.schemas import schemas
+from app.utils.mail import user_mail_event
+from fastapi import (APIRouter, BackgroundTasks, Cookie, Depends,
+                     HTTPException, Response)
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from pydantic import ValidationError
-
-from src.dependencies import get_db
-from src import schemas, models
-from src.core.hash import get_password_hash, verify_password
-from src.core.jwt import (
-    create_token_pair,
-    refresh_token_state,
-    decode_access_token,
-    mail_token,
-    add_refresh_token_cookie,
-    SUB,
-    JTI,
-    EXP,
-)
-from src.exceptions import BadRequestException, NotFoundException, ForbiddenException
-from src.tasks import (
-    user_mail_event,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -179,37 +171,3 @@ async def password_update(
     await user.save(db=db)
 
     return {"msg": "Successfully updated"}
-
-
-@router.get("/articles")
-async def articles(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    db: AsyncSession = Depends(get_db),
-):
-    payload = await decode_access_token(token=token, db=db)
-    user = await models.User.find_by_id(db=db, id=payload[SUB])
-    if not user:
-        raise NotFoundException(detail="User not found")
-
-    articles = await models.Article.find_by_author(db=db, author=user)
-
-    return [schemas.ArticleListScheme.from_orm(article) for article in articles]
-
-
-@router.post("/articles", response_model=schemas.SuccessResponseScheme, status_code=201)
-async def article_create(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    data: schemas.ArticleCreateSchema,
-    db: AsyncSession = Depends(get_db),
-):
-    payload = await decode_access_token(token=token, db=db)
-    user = await models.User.find_by_id(db=db, id=payload[SUB])
-    if not user:
-        raise NotFoundException(detail="User not found")
-
-    article = models.Article(**data.dict())
-    article.author = user
-
-    await article.save(db=db)
-
-    return {"msg": "Article succesfully crated"}
