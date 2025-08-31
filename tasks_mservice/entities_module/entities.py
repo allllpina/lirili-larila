@@ -44,11 +44,30 @@ class BaseEntity(JSON_interface):
     async def from_db(cls, id: str, db: Database):
         try:
             self = cls(db)
+            # make if statement if template is None
             template = await self.read_from_db(id=id)
             await self.parse_dict(template=template)
             return self
         except RuntimeError:
             RuntimeError("Something wrong with database")
+
+    async def delete_in_db(self):
+        try:
+            collection = self.__db__.get_collection(self.__collection__)
+            deleted = await self.pre_delete()
+            await collection.delete_one({"_id": getattr(self, "_id")})
+
+            return {
+                "operation": "delete",
+                "status": "complete",
+                "objects_deleted": deleted,
+            }
+        except RuntimeError:
+            RuntimeError("Something went wrong while deleting object")
+
+    async def pre_delete(self) -> dict:
+        """Hook which deletes all child instances in db"""
+        pass
 
     async def read_from_db(self, id: str) -> dict:
         try:
@@ -163,7 +182,7 @@ class Task(BaseEntity):
         {'usr_id': int, 'role': str, 'salary': float}"""
         self.collaborators.append(collaborator)
 
-    def add_custom_field(self, template: dict) -> None:
+    async def add_custom_field(self, template: dict, write_to_db: bool = False) -> None:
         temp = template.copy()
         field_type = temp.pop("type")
         custom_field = custom_fields.get(field_type, None)
@@ -173,6 +192,9 @@ class Task(BaseEntity):
             raise ValueError("Template for custom fiels creation is incorrect!")
 
         self.custom_fields.append(custom_field(temp))
+
+        if write_to_db:
+            await self.write_to_db()
 
     async def parse_dict(self, template: dict):
         if self.check_template(template=template, necessary_keys=self.__fields__):
@@ -201,10 +223,13 @@ class Task(BaseEntity):
 
             self.custom_fields: list[CustomField] = []
             for field in template["custom_fields"]:
-                self.add_custom_field(field)
+                await self.add_custom_field(field)
 
         else:
             raise ValueError("Template for entity creation is incorrect!")
+
+    async def pre_delete(self) -> str:
+        return {"deleted_task": self._id}
 
     def dump_to_dict(self):
         ret: dict = self.__dict__.copy()
@@ -225,6 +250,7 @@ class Task(BaseEntity):
 @fields(
     all_fields={
         "_id": str,
+        "project_id": str,
         "name": str,
         "description": str,
         "priority": str,
@@ -232,6 +258,7 @@ class Task(BaseEntity):
         "tasks": list[Task],
     },
     updatable_fields={
+        "project_id": str,
         "name": str,
         "description": str,
         "priority": str,
@@ -246,7 +273,7 @@ class Board(BaseEntity):
     def id(self):
         return self._id
 
-    async def add_tasks(self, tasks: list):
+    async def add_tasks(self, tasks: list, write_to_db: bool = False):
         """Adds 'task' instance to the 'board' instance via template:
         "date_of_creation": str,
         "name": str,
@@ -258,6 +285,8 @@ class Board(BaseEntity):
         "time_to_complete": float,
         "custom_fields": list[dict] (custom field templates),
         "collaborators": list[int]}} or task_id(soon)"""
+
+        print(tasks)
         if all(isinstance(task, str) for task in tasks):
             """Huge problem indeed, we need database first"""
             # Database needed
@@ -272,6 +301,9 @@ class Board(BaseEntity):
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
 
+        if write_to_db:
+            await self.write_to_db()
+
     async def pre_write(self):
         try:
             if self.tasks:
@@ -284,6 +316,7 @@ class Board(BaseEntity):
         if self.check_template(template=template, necessary_keys=self.__fields__):
             # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
+            self.project_id: str = template["project_id"]
 
             self.date_of_creation: str = template["date_of_creation"]
 
@@ -297,8 +330,15 @@ class Board(BaseEntity):
         else:
             raise ValueError("Template for entity creation is incorrect!")
 
+    async def pre_delete(self) -> str:
+        ret = {"deleted_board": self._id, "deleted_tasks": []}
+        for task in self.tasks:
+            deleted_task = await task.delete_in_db()
+            ret["deleted_tasks"].append(deleted_task)
+        return ret
+
     def dump_to_dict(self):
-        ret: dict = self.__dict__
+        ret: dict = self.__dict__.copy()
         tasks = []
         if self.tasks:
             tasks = [task.id for task in self.tasks]
@@ -307,7 +347,7 @@ class Board(BaseEntity):
         ret.pop("__db__", None)
 
         if isinstance(ret, dict):
-            return self.__dict__
+            return ret
         else:
             raise TypeError("Return value is not dictionary!")
 
@@ -331,7 +371,7 @@ class Page(BaseEntity):
     def id(self):
         return self._id
 
-    async def add_boards(self, boards: list):
+    async def add_boards(self, boards: list, write_to_db: bool = False):
         """Adds 'board' instance to the 'task' instance via template:
         "name": str,
         "description": str,
@@ -348,6 +388,9 @@ class Page(BaseEntity):
                 )
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
+
+        if write_to_db:
+            await self.write_to_db()
 
     async def pre_write(self):
         try:
@@ -375,8 +418,15 @@ class Page(BaseEntity):
         else:
             raise ValueError("Template for entity creation is incorrect!")
 
+    async def pre_delete(self) -> str:
+        ret = {"deleted_page": self._id, "deleted_boards": []}
+        for board in self.boards:
+            deleted_board = await board.delete_in_db()
+            ret["deleted_boards"].append(deleted_board)
+        return ret
+
     def dump_to_dict(self):
-        ret: dict = self.__dict__
+        ret: dict = self.__dict__.copy()
         boards = []
         if self.boards:
             boards = [board.id for board in self.boards]
@@ -385,7 +435,7 @@ class Page(BaseEntity):
         ret.pop("__db__", None)
 
         if isinstance(ret, dict):
-            return self.__dict__
+            return ret
         else:
             raise TypeError("Return value is not dictionary!")
 
@@ -410,14 +460,14 @@ class Page(BaseEntity):
     },
 )
 class Project(BaseEntity):
-    __collection__ = "Projects"
+    __collection__ = "projects"
     """Class for 'project' instance, contains 'page' instances and workers"""
 
     @property
     def id(self):
         return self._id
 
-    async def add_pages(self, pages: list):
+    async def add_pages(self, pages: list, write_to_db: bool = False):
         """Adds 'page' instance to the 'project' instance via template:
         {"project_id": str,
         "name": str,
@@ -434,6 +484,9 @@ class Project(BaseEntity):
                 )
         else:
             raise ValueError("Neither task template nor task id wasn't given!")
+
+        if write_to_db:
+            await self.write_to_db()
 
     async def pre_write(self):
         try:
@@ -463,8 +516,15 @@ class Project(BaseEntity):
         else:
             raise ValueError("Template for entity creation is incorrect!")
 
+    async def pre_delete(self) -> str:
+        ret = {"deleted_project": self._id, "deleted_pages": []}
+        for page in self.pages:
+            deleted_page = await page.delete_in_db()
+            ret["deleted_bpages"].append(deleted_page)
+        return ret
+
     def dump_to_dict(self):
-        ret: dict = self.__dict__
+        ret: dict = self.__dict__.copy()
         pages = []
         if self.pages:
             pages = [page.id for page in self.pages]
@@ -473,6 +533,6 @@ class Project(BaseEntity):
         ret.pop("__db__", None)
 
         if isinstance(ret, dict):
-            return self.__dict__
+            return ret
         else:
             raise TypeError("Return value is not dictionary!")

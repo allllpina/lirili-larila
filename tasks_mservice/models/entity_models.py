@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class MainCRUDModel(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None
 
 
 class Collaborator(BaseModel):
@@ -13,17 +13,17 @@ class Collaborator(BaseModel):
     salary: float
 
 
-class EditModel:
+class EditModel(BaseModel):
     fields_to_check: ClassVar[list[str]] = []
 
     @model_validator(mode="before")
-    def check_at_least_one(cls, values):
-        if not any(values.get(field) is not None for field in cls.fields_to_check):
+    def check_at_least_one(cls, values: dict):
+        if not any(key in values for key in cls.fields_to_check):
             raise ValueError("At least one editable field must be provided")
         return values
 
 
-class TaskEdit(MainCRUDModel, EditModel):
+class TaskEdit(EditModel, MainCRUDModel):
     fields_to_check: ClassVar[list[str]] = [
         "name",
         "description",
@@ -34,23 +34,25 @@ class TaskEdit(MainCRUDModel, EditModel):
         "tags",
         "time_to_complete",
         "custom_fields",
+        "id",
     ]
 
-    id: str = Field(alias="_id")
-    name: str
-    description: str
-    collaborators: List[Collaborator]
-    price: float
-    priority: str
-    status: str
-    tags: List[str]
-    time_to_complete: float
-    custom_fields: List[dict]
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    collaborators: Optional[List[Collaborator]] = None
+    price: Optional[float] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    tags: Optional[List[str]] = None
+    time_to_complete: Optional[float] = None
+    custom_fields: Optional[List[dict]] = None
 
 
 class TaskTemplate(MainCRUDModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
+    board_id: str
     name: str
     description: str
     collaborators: List[Collaborator]
@@ -59,37 +61,43 @@ class TaskTemplate(MainCRUDModel):
     status: str
     tags: List[str]
     time_to_complete: float
-    date_of_creation: str
     custom_fields: List[dict]
 
 
-class BoardEdit(MainCRUDModel, EditModel):
-    fields_to_check: ClassVar[list[str]] = ["name", "description", "priority", "tasks"]
+class BoardEdit(EditModel, MainCRUDModel):
+    fields_to_check: ClassVar[list[str]] = [
+        "name",
+        "description",
+        "priority",
+        "tasks",
+        "project_id",
+    ]
 
-    id: str = Field(alias="_id")
-    name: str
-    description: str
-    priority: str
-    tasks: List[Union[str | TaskTemplate]]
+    project_id: Optional[str] = None
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    tasks: Optional[List[Union[str, TaskTemplate]]] = None
 
 
 class BoardTemplate(MainCRUDModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
+    page_id: str
     name: str
     description: str
     priority: str
-    date_of_creation: str
-    tasks: List[Union[str | TaskTemplate]]
+    tasks: List[Union[str, TaskTemplate]]
 
 
-class PageEdit(MainCRUDModel, EditModel):
-    fields_to_check: ClassVar[list[str]] = ["name", "description", "boards"]
+class PageEdit(EditModel, MainCRUDModel):
+    fields_to_check: ClassVar[list[str]] = ["name", "description", "boards", "id"]
 
-    id: str = Field(alias="_id")
-    name: str
-    description: str
-    boards: List[Union[str | BoardTemplate]]
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    boards: Optional[List[Union[str, BoardTemplate]]] = None
 
 
 class PageTemplate(MainCRUDModel):
@@ -97,25 +105,25 @@ class PageTemplate(MainCRUDModel):
     project_id: str
     name: str
     description: str
-    date_of_creation: str
-    boards: List[Union[str | BoardTemplate]]
+    boards: List[Union[str, BoardTemplate]]
 
 
-class ProjectEdit(MainCRUDModel, EditModel):
+class ProjectEdit(EditModel, MainCRUDModel):
     fields_to_check: ClassVar[list[str]] = [
         "name",
         "description",
         "collaborators",
         "price",
         "pages",
+        "id",
     ]
 
-    id: str = Field(alias="_id")
+    id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
     collaborators: Optional[List[dict]] = None
     price: Optional[float] = None
-    pages: Optional[List[Union[str | PageTemplate]]] = None
+    pages: Optional[List[Union[str, PageTemplate]]] = None
 
 
 class ProjectTemplate(MainCRUDModel):
@@ -125,5 +133,4 @@ class ProjectTemplate(MainCRUDModel):
     description: str
     collaborators: List[dict]
     price: float
-    date_of_creation: str
-    pages: List[Union[str | PageTemplate]]
+    pages: List[Union[str, PageTemplate]]

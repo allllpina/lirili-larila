@@ -1,4 +1,6 @@
-from entities_module.entities import Page
+from datetime import datetime
+
+from entities_module.entities import Page, Project
 from fastapi import APIRouter, Depends, HTTPException
 from models.entity_models import PageEdit, PageTemplate
 from pymongo.database import Database
@@ -12,13 +14,17 @@ async def create_page(page: PageTemplate, db: Database = Depends(get_db)):
     try:
         # Can be changed to JWT
         data = page.model_dump(by_alias=True)
+
+        date_of_creation = str(datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+        data["date_of_creation"] = date_of_creation
+
+        project_id = page.project_id
         _ = data.pop("user_id")
-
-        page = await Page.from_template(template=data, db=db)
+        project = await Project.from_db(project_id, db=db)
         try:
-            await page.write_to_db()
+            await project.add_pages(pages=[data], write_to_db=True)
 
-            return page.dump_to_dict()
+            return data
         except RuntimeError as e:
             raise e
     except HTTPException as e:
@@ -48,5 +54,16 @@ async def edit_page(page_template: PageEdit, db: Database = Depends(get_db)):
 
         return page.dump_to_dict()
 
+    except HTTPException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@pages_router.delete("/delete_page", tags=["pages", "delete"])
+async def delete_page(page_id: str, db: Database = Depends(get_db)):
+    try:
+        # Make it to depend on Project instance
+        page = await Page.from_db(id=page_id, db=db)
+        ret = await page.delete_in_db()
+        return ret
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))
