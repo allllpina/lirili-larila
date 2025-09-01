@@ -23,51 +23,27 @@ async def read_root():
 
 # import asyncio
 
-# from entities_module.entities import Board
+# from entities_module.entities import Project
 # from pymongo import AsyncMongoClient
 
 
 # async def main():
 #     client = AsyncMongoClient("localhost", 27017)
 #     db = client.get_database("test")
-#     board = await Board.from_db(
-#         id="204626b9-345b-4697-9b02-a5511f77cf52",
+
+#     projectGiver = await Project.from_db(
+#         "1344a344-ebd4-4a30-a723-7759cb042e07",
 #         db=db,
 #     )
-#     await board.add_tasks(
-#         [
-#             {
-#                 "project_id": "897eeefc-f79d-46cd-b268-91eeb9ec2cb6",
-#                 "name": "Task-1",
-#                 "description": "somedesc1",
-#                 "collaborators": [{"usr_id": 1, "role": "admin", "salary": 0}],
-#                 "price": -1,
-#                 "priority": "low",
-#                 "status": "done",
-#                 "tags": ["tag1", "tag3"],
-#                 "time_to_complete": -1,
-#                 "date_of_creation": "30-08-2025 20:01:56",
-#                 "custom_fields": [
-#                     {"type": "checkbox", "checked": True, "text": "Boba"}
-#                 ],
-#             },
-#             {
-#                 "project_id": "897eeefc-f79d-46cd-b268-91eeb9ec2cb6",
-#                 "name": "Task-2",
-#                 "description": "somedesc2",
-#                 "collaborators": [{"usr_id": 1, "role": "admin", "salary": 0}],
-#                 "price": -1,
-#                 "priority": "high",
-#                 "status": "done",
-#                 "tags": ["tag1", "tag2", "tag3"],
-#                 "time_to_complete": -1,
-#                 "date_of_creation": "30-08-2025 20:01:56",
-#                 "custom_fields": [],
-#             },
-#         ],
-#         write_to_db=True,
+#     projectReciever = await Project.from_db(
+#         "7f5ecfbc-6719-425d-8be9-62cbb3aeac7c", db=db
 #     )
-#     print(board.dump_to_dict())
+#     page_id = "1d8e6507-d374-4ef0-a1b4-51c9ca0b4bea"
+#     await projectReciever.add_pages(pages=[page_id], write_to_db=True)
+#     await projectGiver.delete_page(page_id=page_id)
+#     # await project.write_to_db()
+#     # # await project.delete_page("1d8e6507-d374-4ef0-a1b4-51c9ca0b4bea", delete_in_db=True)
+#     # await project.update(**{"name": "abobik", "description": "last"})
 
 
 # asyncio.run(main())

@@ -102,6 +102,8 @@ class BaseEntity(JSON_interface):
 
     def check_template(self, template: dict, necessary_keys: list):
         """Method which checks if template has a valid structure"""
+        if template is None:
+            return False
         try:
             for key in necessary_keys:
                 if key not in template.keys():
@@ -129,7 +131,9 @@ class BaseEntity(JSON_interface):
 
             setattr(self, key, value)
 
-        await self.write_to_db()
+        await self.__db__.get_collection(self.__collection__).update_one(
+            {"_id": self._id}, {"$set": kwargs}
+        )
         self.update_log(self.__class__.__name__)
 
     # TO CHANGE IN DEVELOPMENT
@@ -231,6 +235,17 @@ class Task(BaseEntity):
     async def pre_delete(self) -> str:
         return {"deleted_task": self._id}
 
+    async def delete_task(self, custom_field: dict):
+        """Method which allows to delete record about custom field on page in database"""
+
+        self.custom_fields = list(
+            filter(lambda c_f: c_f != custom_field, self.custom_fields)
+        )
+
+        await self.__db__.get_collection(self.__collection__).update_one(
+            {"_id": self._id}, {"$set": {"tasks": self.custom_fields}}
+        )
+
     def dump_to_dict(self):
         ret: dict = self.__dict__.copy()
         custom_fields_: list[str] = []
@@ -288,8 +303,6 @@ class Board(BaseEntity):
 
         print(tasks)
         if all(isinstance(task, str) for task in tasks):
-            """Huge problem indeed, we need database first"""
-            # Database needed
             for id in tasks:
                 self.tasks.append(await Task.from_db(id=id, db=self.__db__))
 
@@ -314,7 +327,6 @@ class Board(BaseEntity):
 
     async def parse_dict(self, template: dict):
         if self.check_template(template=template, necessary_keys=self.__fields__):
-            # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
             self.project_id: str = template["project_id"]
 
@@ -329,6 +341,18 @@ class Board(BaseEntity):
             await self.add_tasks(tasks=tasks)
         else:
             raise ValueError("Template for entity creation is incorrect!")
+
+    async def delete_task(self, task_id: str, delete_in_db: bool = False):
+        """Method which allows to delete record about task on page in database"""
+        self.tasks = list(filter(lambda task: task.id != task_id, self.tasks))
+
+        if delete_in_db:
+            task = await Task.from_db(id=task_id, db=self.__db__)
+            await task.delete_in_db()
+
+        await self.__db__.get_collection(self.__collection__).update_one(
+            {"_id": self._id}, {"$set": {"tasks": self.tasks}}
+        )
 
     async def pre_delete(self) -> str:
         ret = {"deleted_board": self._id, "deleted_tasks": []}
@@ -418,6 +442,18 @@ class Page(BaseEntity):
         else:
             raise ValueError("Template for entity creation is incorrect!")
 
+    async def delete_board(self, board_id: str, delete_in_db: bool = False):
+        """Method which allows to delete record about board on page in database"""
+        self.boards = list(filter(lambda board: board.id != board_id, self.boards))
+
+        if delete_in_db:
+            board = await Board.from_db(id=board_id, db=self.__db__)
+            await board.delete_in_db()
+
+        await self.__db__.get_collection(self.__collection__).update_one(
+            {"_id": self._id}, {"$set": {"boards": self.boards}}
+        )
+
     async def pre_delete(self) -> str:
         ret = {"deleted_page": self._id, "deleted_boards": []}
         for board in self.boards:
@@ -498,7 +534,6 @@ class Project(BaseEntity):
 
     async def parse_dict(self, template: dict):
         if self.check_template(template=template, necessary_keys=self.__fields__):
-            # Change regarding on MongoDB requirements
             self._id: str = template["_id"]
 
             self.admin_id: int = template["admin_id"]
@@ -515,6 +550,17 @@ class Project(BaseEntity):
 
         else:
             raise ValueError("Template for entity creation is incorrect!")
+
+    async def delete_page(self, page_id: str, delete_in_db: bool = False):
+        self.pages = list(filter(lambda page: page.id != page_id, self.pages))
+
+        if delete_in_db:
+            page = await Page.from_db(id=page_id, db=self.__db__)
+            await page.delete_in_db()
+
+        await self.__db__.get_collection(self.__collection__).update_one(
+            {"_id": self._id}, {"$set": {"pages": self.pages}}
+        )
 
     async def pre_delete(self) -> str:
         ret = {"deleted_project": self._id, "deleted_pages": []}
