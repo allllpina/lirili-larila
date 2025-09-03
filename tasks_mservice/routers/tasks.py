@@ -2,7 +2,7 @@ from datetime import datetime
 
 from entities_module.entities import Board, Task
 from fastapi import APIRouter, Depends, HTTPException
-from models.entity_models import TaskEdit, TaskTemplate
+from models.entity_models import CustomFieldMove, TaskEdit, TaskMove, TaskTemplate
 from pymongo.database import Database
 from utils.get_db import get_db
 
@@ -58,12 +58,44 @@ async def edit_task(task_template: TaskEdit, db: Database = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@tasks_router.delete("/delete_task", tags=["tasks", "delete"])
+@tasks_router.delete("/delete_task", tags=["delete"])
 async def delete_task(task_id: str, db: Database = Depends(get_db)):
     # Make it to depend on Project instance
     try:
         task = await Task.from_db(task_id=task_id, db=db)
         ret = await task.delete_in_db()
         return ret
+    except HTTPException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@tasks_router.put("/move_task", tags=["move"])
+async def move_task(request: TaskMove, db: Database = Depends(get_db)):
+    try:
+        boardGiver = await Board.from_db(id=request.boardGiverId, db=db)
+        boardReceiver = await Board.from_db(id=request.boardReceiverId, db=db)
+
+        await boardReceiver.add_tasks(tasks=[request.taskId], write_to_db=True)
+        await boardGiver.delete_task(task_id=request.taskId)
+
+        return True
+
+    except HTTPException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@tasks_router.put("/move_custom_field", tags=["move"])
+async def move_custom_field(request: CustomFieldMove, db: Database = Depends(get_db)):
+    try:
+        taskGiver = await Task.from_db(id=request.taskGiverId, db=db)
+        taskReceiver = await Task.from_db(id=request.taskReceiverId, db=db)
+
+        await taskReceiver.add_custom_field(
+            template=request.customField, write_to_db=True
+        )
+        await taskGiver.delete_custom_field(custom_field=request.customField)
+
+        return True
+
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))

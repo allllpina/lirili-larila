@@ -23,6 +23,18 @@ class EditModel(BaseModel):
         return values
 
 
+class CustomFieldMove(MainCRUDModel):
+    taskGiverId: str
+    taskReceiverId: str
+    customField: dict
+
+
+class TaskMove(MainCRUDModel):
+    boardGiverId: str
+    boardReceiverId: str
+    taskId: str
+
+
 class TaskEdit(EditModel, MainCRUDModel):
     fields_to_check: ClassVar[list[str]] = [
         "name",
@@ -62,6 +74,12 @@ class TaskTemplate(MainCRUDModel):
     tags: List[str]
     time_to_complete: float
     custom_fields: List[dict]
+
+
+class BoardMove(MainCRUDModel):
+    pageGiverId: str
+    pageReceiverId: str
+    boardId: str
 
 
 class BoardEdit(EditModel, MainCRUDModel):

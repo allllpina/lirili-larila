@@ -2,14 +2,14 @@ from datetime import datetime
 
 from entities_module.entities import Board, Page
 from fastapi import APIRouter, Depends, HTTPException
-from models.entity_models import BoardEdit, BoardTemplate
+from models.entity_models import BoardEdit, BoardMove, BoardTemplate
 from pymongo.database import Database
 from utils.get_db import get_db
 
 boards_router = APIRouter(tags=["boards", "CRUD"])
 
 
-@boards_router.post("/create_board", tags=["boards", "create"])
+@boards_router.post("/create_board", tags=["create"])
 async def create_board(board: BoardTemplate, db: Database = Depends(get_db)):
     try:
         # Can be changed to JWT
@@ -31,7 +31,7 @@ async def create_board(board: BoardTemplate, db: Database = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@boards_router.get("/get_board", tags=["boards", "read"])
+@boards_router.get("/get_board", tags=["read"])
 async def get_board(user_id: int, board_id: str, db: Database = Depends(get_db)):
     try:
         board = await Board.from_db(board_id, db=db)
@@ -42,7 +42,7 @@ async def get_board(user_id: int, board_id: str, db: Database = Depends(get_db))
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@boards_router.put("/edit_board", tags=["boards", "edit"])
+@boards_router.put("/edit_board", tags=["edit"])
 async def edit_board(board_template: BoardEdit, db: Database = Depends(get_db)):
     try:
         data = board_template.model_dump(exclude_none=True, by_alias=True)
@@ -58,12 +58,27 @@ async def edit_board(board_template: BoardEdit, db: Database = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@boards_router.delete("/delete_board", tags=["boards", "delete"])
+@boards_router.delete("/delete_board", tags=["delete"])
 async def delete_board(board_id: str, db: Database = Depends(get_db)):
     # Make it to depend on Project instance
     try:
         board = await Board.from_db(id=board_id, db=db)
         ret = await board.delete_in_db()
         return ret
+    except HTTPException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@boards_router.put("/move_board", tags=["move"])
+async def move_board(request: BoardMove, db: Database = Depends(get_db)):
+    try:
+        pageGiver = await Page.from_db(id=request.pageGiverId, db=db)
+        pageReceiver = await Page.from_db(id=request.pageReceiverId, db=db)
+
+        await pageReceiver.add_boards(boards=[request.boardId], write_to_db=True)
+        await pageGiver.delete_board(board_id=request.boardId)
+
+        return True
+
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))

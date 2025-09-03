@@ -192,7 +192,6 @@ class Task(BaseEntity):
         custom_field = custom_fields.get(field_type, None)
 
         if custom_field is None:
-            print(field_type)
             raise ValueError("Template for custom fiels creation is incorrect!")
 
         self.custom_fields.append(custom_field(temp))
@@ -235,8 +234,8 @@ class Task(BaseEntity):
     async def pre_delete(self) -> str:
         return {"deleted_task": self._id}
 
-    async def delete_task(self, custom_field: dict):
-        """Method which allows to delete record about custom field on page in database"""
+    async def delete_custom_field(self, custom_field: dict):
+        """Method which allows to delete record about custom field in task in database"""
 
         self.custom_fields = list(
             filter(lambda c_f: c_f != custom_field, self.custom_fields)
@@ -301,7 +300,6 @@ class Board(BaseEntity):
         "custom_fields": list[dict] (custom field templates),
         "collaborators": list[int]}} or task_id(soon)"""
 
-        print(tasks)
         if all(isinstance(task, str) for task in tasks):
             for id in tasks:
                 self.tasks.append(await Task.from_db(id=id, db=self.__db__))
@@ -343,7 +341,7 @@ class Board(BaseEntity):
             raise ValueError("Template for entity creation is incorrect!")
 
     async def delete_task(self, task_id: str, delete_in_db: bool = False):
-        """Method which allows to delete record about task on page in database"""
+        """Method which allows to delete record about task on board in database"""
         self.tasks = list(filter(lambda task: task.id != task_id, self.tasks))
 
         if delete_in_db:
@@ -552,6 +550,7 @@ class Project(BaseEntity):
             raise ValueError("Template for entity creation is incorrect!")
 
     async def delete_page(self, page_id: str, delete_in_db: bool = False):
+        """Method which allows to delete record about page in project in database"""
         self.pages = list(filter(lambda page: page.id != page_id, self.pages))
 
         if delete_in_db:
