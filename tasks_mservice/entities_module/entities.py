@@ -24,8 +24,11 @@ class BaseEntity(JSON_interface):
 
     # all fields
     __fields__: dict[str, type] = {}
+
     # all allowed attributes to be changed
     __updatable_fields__: dict[str, type] = {}
+
+    # name of the collection in database which is used by certain child class
     __collection__: str
 
     def __init__(self, db: Database):
@@ -34,6 +37,7 @@ class BaseEntity(JSON_interface):
 
     @classmethod
     async def from_template(cls, template: dict, db: Database):
+        """Method which creates object from certain template"""
         self = cls(db)
         if not template.get("_id", None):
             template["_id"] = str(uuid.uuid4())
@@ -42,10 +46,14 @@ class BaseEntity(JSON_interface):
 
     @classmethod
     async def from_db(cls, id: str, db: Database):
+        """Method which creates object using record id.
+        It takes template from database using this id"""
         try:
             self = cls(db)
             # make if statement if template is None
             template = await self.read_from_db(id=id)
+            if template is None:
+                raise RuntimeError("No such record")
             await self.parse_dict(template=template)
             return self
         except RuntimeError:
@@ -80,18 +88,26 @@ class BaseEntity(JSON_interface):
     async def write_to_db(self):
         try:
             collection = self.__db__.get_collection(self.__collection__)
+
+            # checking if such record does exist
             res = await collection.find_one({"_id": getattr(self, "_id")})
 
+            # dict representation of data
+            data = self.dump_to_dict()
+
+            # pre_write method is a hook which makes all unique logic being described in child classes
             await self.pre_write()
 
             if res:
-                await collection.replace_one(
-                    {"_id": getattr(self, "_id")}, self.dump_to_dict()
-                )
+                await collection.replace_one({"_id": getattr(self, "_id")}, data)
             else:
-                await collection.insert_one(self.dump_to_dict())
+                await collection.insert_one(data)
 
-            return True
+            return {
+                "operation": "write",
+                "status": "complete",
+                "objects_writed": data,
+            }
 
         except RuntimeError:
             RuntimeError("Something wrong with database")
@@ -114,7 +130,7 @@ class BaseEntity(JSON_interface):
 
     async def update(self, **kwargs):
         """Method that allows to change attribute values
-        (only ones that allowed to)"""
+        (only ones that allowed to be changed)"""
         for key, value in kwargs.items():
             if key not in self.__updatable_fields__:
                 raise AttributeError(
@@ -135,6 +151,15 @@ class BaseEntity(JSON_interface):
             {"_id": self._id}, {"$set": kwargs}
         )
         self.update_log(self.__class__.__name__)
+
+        return {
+            "operation": "update",
+            "status": "complete",
+            "objects_writed": {
+                "object_id": getattr(self, "_id"),
+                "fields_changed": kwargs,
+            },
+        }
 
     # TO CHANGE IN DEVELOPMENT
     def update_log(self, name: str):
@@ -159,7 +184,7 @@ class BaseEntity(JSON_interface):
         "priority": str,
         "time_to_complete": float,
         "custom_fields": list[CustomField],
-        "collaborators": list[int],
+        "collaborators": list[dict],
     },
     updatable_fields={
         "name": str,
@@ -180,11 +205,6 @@ class Task(BaseEntity):
     @property
     def id(self):
         return self._id
-
-    def add_collaborator(self, collaborator: dict) -> None:
-        """Add a new collaborator by dict:
-        {'usr_id': int, 'role': str, 'salary': float}"""
-        self.collaborators.append(collaborator)
 
     async def add_custom_field(self, template: dict, write_to_db: bool = False) -> None:
         temp = template.copy()
@@ -565,7 +585,7 @@ class Project(BaseEntity):
         ret = {"deleted_project": self._id, "deleted_pages": []}
         for page in self.pages:
             deleted_page = await page.delete_in_db()
-            ret["deleted_bpages"].append(deleted_page)
+            ret["deleted_pages"].append(deleted_page)
         return ret
 
     def dump_to_dict(self):
