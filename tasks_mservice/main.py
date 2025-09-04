@@ -31,19 +31,22 @@ async def read_root():
 #     client = AsyncMongoClient("localhost", 27017)
 #     db = client.get_database("test")
 
-#     projectGiver = await Project.from_db(
-#         "1344a344-ebd4-4a30-a723-7759cb042e07",
-#         db=db,
+#     project = await Project.from_db("7f5ecfbc-6719-425d-8be9-62cbb3aeac7c", db=db)
+#     await project.add_pages(
+#         pages=[
+#             {
+#                 "project_id": "1344a344-ebd4-4a30-a723-7759cb042e07",
+#                 "date_of_creation": "31-08-2025 18:40:56",
+#                 "name": "test1",
+#                 "description": "asdfasdfasdf",
+#                 "boards": [],
+#             }
+#         ]
 #     )
-#     projectReciever = await Project.from_db(
-#         "7f5ecfbc-6719-425d-8be9-62cbb3aeac7c", db=db
-#     )
-#     page_id = "1d8e6507-d374-4ef0-a1b4-51c9ca0b4bea"
-#     await projectReciever.add_pages(pages=[page_id], write_to_db=True)
-#     await projectGiver.delete_page(page_id=page_id)
-#     # await project.write_to_db()
-#     # # await project.delete_page("1d8e6507-d374-4ef0-a1b4-51c9ca0b4bea", delete_in_db=True)
-#     # await project.update(**{"name": "abobik", "description": "last"})
+#     print(project.dump_to_dict())
+# await project.write_to_db()
+# # await project.delete_page("1d8e6507-d374-4ef0-a1b4-51c9ca0b4bea", delete_in_db=True)
+# await project.update(**{"name": "abobik", "description": "last"})
 
 
 # asyncio.run(main())

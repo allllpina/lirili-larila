@@ -31,6 +31,7 @@ class BaseEntity(JSON_interface):
     # name of the collection in database which is used by certain child class
     __collection__: str
 
+    # CONSTRUCTORS
     def __init__(self, db: Database):
         super().__init__()
         self.__db__ = db
@@ -57,12 +58,13 @@ class BaseEntity(JSON_interface):
             await self.parse_dict(template=template)
             return self
         except RuntimeError:
-            RuntimeError("Something wrong with database")
+            raise RuntimeError("Something wrong with database")
 
+    # DATABASE RELATED METHODS
     async def delete_in_db(self):
         try:
             collection = self.__db__.get_collection(self.__collection__)
-            deleted = await self.pre_delete()
+            deleted = await self._pre_delete()
             await collection.delete_one({"_id": getattr(self, "_id")})
 
             return {
@@ -71,11 +73,7 @@ class BaseEntity(JSON_interface):
                 "objects_deleted": deleted,
             }
         except RuntimeError:
-            RuntimeError("Something went wrong while deleting object")
-
-    async def pre_delete(self) -> dict:
-        """Hook which deletes all child instances in db"""
-        pass
+            raise RuntimeError("Something went wrong while deleting object")
 
     async def read_from_db(self, id: str) -> dict:
         try:
@@ -83,7 +81,7 @@ class BaseEntity(JSON_interface):
             res = await collection.find_one({"_id": id})
             return res
         except RuntimeError:
-            RuntimeError("Something wrong with database")
+            raise RuntimeError("Something wrong with database")
 
     async def write_to_db(self):
         try:
@@ -95,8 +93,8 @@ class BaseEntity(JSON_interface):
             # dict representation of data
             data = self.dump_to_dict()
 
-            # pre_write method is a hook which makes all unique logic being described in child classes
-            await self.pre_write()
+            # _pre_write method is a hook which makes all unique logic being described in child classes
+            await self._pre_write()
 
             if res:
                 await collection.replace_one({"_id": getattr(self, "_id")}, data)
@@ -110,23 +108,32 @@ class BaseEntity(JSON_interface):
             }
 
         except RuntimeError:
-            RuntimeError("Something wrong with database")
+            raise RuntimeError("Something wrong with database")
 
-    async def pre_write(self):
-        """Hook that used to make database writing flexible in child classes"""
-        pass
+    # GENERAL METHODS
+    async def parse_dict(self, template):
+        if self._check_template(template=template, necessary_keys=self.__fields__):
+            self._id: str = template.get("_id")
+            self.project_id: str = template.get("project_id")
+            self.date_of_creation: str = template.get("date_of_creation")
 
-    def check_template(self, template: dict, necessary_keys: list):
-        """Method which checks if template has a valid structure"""
-        if template is None:
-            return False
-        try:
-            for key in necessary_keys:
-                if key not in template.keys():
-                    return False
-            return True
-        except ValueError:
-            ValueError("Most likely, function couldn't get template")
+            self.name: str = template.get("name")
+            self.description: str = template.get("description")
+
+            await self._parse_hook(template)
+        else:
+            raise ValueError("Template for entity creation is incorrect!")
+
+    def dump_to_dict(self):
+        ret: dict = {key: getattr(self, key, None) for key in self.__fields__}
+
+        ret = self._dump_to_dict_hook(ret=ret)
+        ret.pop("__db__", None)
+
+        if isinstance(ret, dict):
+            return ret
+        else:
+            raise TypeError("Return value is not dictionary!")
 
     async def update(self, **kwargs):
         """Method that allows to change attribute values
@@ -150,7 +157,7 @@ class BaseEntity(JSON_interface):
         await self.__db__.get_collection(self.__collection__).update_one(
             {"_id": self._id}, {"$set": kwargs}
         )
-        self.update_log(self.__class__.__name__)
+        self._update_log(self.__class__.__name__)
 
         return {
             "operation": "update",
@@ -161,8 +168,58 @@ class BaseEntity(JSON_interface):
             },
         }
 
+    # HOOKS
+    def _dump_to_dict_hook(self, ret):
+        """Hook which dumps all child instances in db"""
+        pass
+
+    async def _pre_delete(self) -> dict:
+        """Hook which deletes all child instances in db"""
+        pass
+
+    async def _pre_write(self):
+        """Hook which is used to make database writing flexible in child classes"""
+        pass
+
+    async def _parse_hook(self, template):
+        """Hook which is used to parse unique fields for classes"""
+        pass
+
+    # SERVICE METHODS
+
+    def _check_template(self, template: dict, necessary_keys: list):
+        """Method which checks if template has a valid structure"""
+        if template is None:
+            return False
+        try:
+            for key in necessary_keys:
+                if key not in template.keys():
+                    return False
+            return True
+        except ValueError:
+            ValueError("Most likely, function couldn't get template")
+
+    async def _add_children(
+        self, items, cls, collection: list, write_to_db: bool = False
+    ):
+        if all(isinstance(item, str) for item in items):
+            # Means it's IDs in the items list
+            for id in items:
+                collection.append(await cls.from_db(id=id, db=self.__db__))
+        elif all(isinstance(item, dict) for item in items):
+            # Means it's templates in the items list
+            for temp in items:
+                collection.append(
+                    await cls.from_template(template=temp, db=self.__db__)
+                )
+        else:
+            raise ValueError("Invalid items format")
+
+        if write_to_db:
+            await self.write_to_db()
+
     # TO CHANGE IN DEVELOPMENT
-    def update_log(self, name: str):
+    def _update_log(self, name: str):
         """Method that logging all updates"""
         print(
             "[LOG] {} was uptated {}".format(
@@ -195,7 +252,7 @@ class BaseEntity(JSON_interface):
         "priority": str,
         "time_to_complete": float,
         "custom_fields": list[CustomField],
-        "collaborators": list[int],
+        "collaborators": list[dict],
     },
 )
 class Task(BaseEntity):
@@ -219,39 +276,26 @@ class Task(BaseEntity):
         if write_to_db:
             await self.write_to_db()
 
-    async def parse_dict(self, template: dict):
-        if self.check_template(template=template, necessary_keys=self.__fields__):
-            # Change regarding on MongoDB requirements
-            self._id: str = template["_id"]
-            self.project_id: str = template["project_id"]
-            self.date_of_creation: str = template["date_of_creation"]
+    async def _parse_hook(self, template: dict):
+        self.collaborators: list[dict] = template["collaborators"]
+        self.status: str = template["status"]
+        self.tags: list[str] = template["tags"]
 
-            self.name: str = template["name"]
-            self.description: str = template["description"]
-            self.collaborators: list[dict] = template["collaborators"]
-            self.status: str = template["status"]
-            self.tags: list[str] = template["tags"]
+        self.price: float = template["price"] if (template["price"] is not None) else -1
+        self.time_to_complete: float = (
+            template["time_to_complete"]
+            if (template["time_to_complete"] is not None)
+            else -1
+        )
+        self.priority: str = (
+            template["priority"] if template["priority"] is not None else "None"
+        )
 
-            self.price: float = (
-                template["price"] if (template["price"] is not None) else -1
-            )
-            self.time_to_complete: float = (
-                template["time_to_complete"]
-                if (template["time_to_complete"] is not None)
-                else -1
-            )
-            self.priority: str = (
-                template["priority"] if template["priority"] is not None else -1
-            )
+        self.custom_fields: list[CustomField] = []
+        for field in template["custom_fields"]:
+            await self.add_custom_field(field)
 
-            self.custom_fields: list[CustomField] = []
-            for field in template["custom_fields"]:
-                await self.add_custom_field(field)
-
-        else:
-            raise ValueError("Template for entity creation is incorrect!")
-
-    async def pre_delete(self) -> str:
+    async def _pre_delete(self) -> str:
         return {"deleted_task": self._id}
 
     async def delete_custom_field(self, custom_field: dict):
@@ -265,20 +309,15 @@ class Task(BaseEntity):
             {"_id": self._id}, {"$set": {"tasks": self.custom_fields}}
         )
 
-    def dump_to_dict(self):
-        ret: dict = self.__dict__.copy()
+    def _dump_to_dict_hook(self, ret):
         custom_fields_: list[str] = []
 
         if self.custom_fields:
             custom_fields_ = [c_f.dump_to_dict() for c_f in self.custom_fields]
 
         ret["custom_fields"] = custom_fields_
-        ret.pop("__db__", None)
 
-        if isinstance(ret, dict):
-            return ret
-        else:
-            raise TypeError("Return value is not dictionary!")
+        return ret
 
 
 @fields(
@@ -320,45 +359,21 @@ class Board(BaseEntity):
         "custom_fields": list[dict] (custom field templates),
         "collaborators": list[int]}} or task_id(soon)"""
 
-        if all(isinstance(task, str) for task in tasks):
-            for id in tasks:
-                self.tasks.append(await Task.from_db(id=id, db=self.__db__))
+        await self._add_children(
+            items=tasks, cls=Task, collection=self.tasks, write_to_db=write_to_db
+        )
 
-        elif all(isinstance(task, dict) for task in tasks):
-            for temp in tasks:
-                self.tasks.append(
-                    await Task.from_template(template=temp, db=self.__db__)
-                )
-        else:
-            raise ValueError("Neither task template nor task id wasn't given!")
+    async def _pre_write(self):
+        if self.tasks:
+            for task in self.tasks:
+                await task.write_to_db()
 
-        if write_to_db:
-            await self.write_to_db()
+    async def _parse_hook(self, template: dict):
+        self.priority: str = template["priority"]
 
-    async def pre_write(self):
-        try:
-            if self.tasks:
-                for task in self.tasks:
-                    await task.write_to_db()
-        except RuntimeError:
-            RuntimeError("Task writing to db went wrong!")
-
-    async def parse_dict(self, template: dict):
-        if self.check_template(template=template, necessary_keys=self.__fields__):
-            self._id: str = template["_id"]
-            self.project_id: str = template["project_id"]
-
-            self.date_of_creation: str = template["date_of_creation"]
-
-            self.name: str = template["name"]
-            self.description: str = template["description"]
-            self.priority: str = template["priority"]
-
-            self.tasks: list[Task] = []
-            tasks = template.get("tasks") or []
-            await self.add_tasks(tasks=tasks)
-        else:
-            raise ValueError("Template for entity creation is incorrect!")
+        self.tasks: list[Task] = []
+        tasks = template.get("tasks") or []
+        await self.add_tasks(tasks=tasks)
 
     async def delete_task(self, task_id: str, delete_in_db: bool = False):
         """Method which allows to delete record about task on board in database"""
@@ -372,26 +387,21 @@ class Board(BaseEntity):
             {"_id": self._id}, {"$set": {"tasks": self.tasks}}
         )
 
-    async def pre_delete(self) -> str:
+    async def _pre_delete(self) -> str:
         ret = {"deleted_board": self._id, "deleted_tasks": []}
         for task in self.tasks:
             deleted_task = await task.delete_in_db()
             ret["deleted_tasks"].append(deleted_task)
         return ret
 
-    def dump_to_dict(self):
-        ret: dict = self.__dict__.copy()
+    def _dump_to_dict_hook(self, ret):
         tasks = []
         if self.tasks:
             tasks = [task.id for task in self.tasks]
 
         ret["tasks"] = tasks
-        ret.pop("__db__", None)
 
-        if isinstance(ret, dict):
-            return ret
-        else:
-            raise TypeError("Return value is not dictionary!")
+        return ret
 
 
 @fields(
@@ -420,45 +430,19 @@ class Page(BaseEntity):
         "priority": str,
         "date_of_creation": str,
         "tasks": list[str](task IDs)} or board_id(soon)"""
-        if all(isinstance(board, str) for board in boards):
-            for id in boards:
-                self.boards.append(await Board.from_db(id=id, db=self.__db__))
-        elif all(isinstance(board, dict) for board in boards):
-            for temp in boards:
-                self.boards.append(
-                    await Board.from_template(template=temp, db=self.__db__)
-                )
-        else:
-            raise ValueError("Neither task template nor task id wasn't given!")
+        await self._add_children(
+            items=boards, cls=Board, collection=self.boards, write_to_db=write_to_db
+        )
 
-        if write_to_db:
-            await self.write_to_db()
+    async def _pre_write(self):
+        if self.boards:
+            for board in self.boards:
+                await board.write_to_db()
 
-    async def pre_write(self):
-        try:
-            if self.boards:
-                for board in self.boards:
-                    await board.write_to_db()
-        except RuntimeError:
-            RuntimeError("Board writing to db went wrong!")
-
-    async def parse_dict(self, template: dict):
-        if self.check_template(template=template, necessary_keys=self.__fields__):
-            # Change regarding on MongoDB requirements
-            self._id: str = template["_id"]
-
-            self.project_id: str = template["project_id"]
-            self.date_of_creation: str = template["date_of_creation"]
-
-            self.name: str = template["name"]
-            self.description: str = template["description"]
-
-            self.boards: list[Board] = []
-            boards = template.get("boards") or []
-            await self.add_boards(boards=boards)
-
-        else:
-            raise ValueError("Template for entity creation is incorrect!")
+    async def _parse_hook(self, template: dict):
+        self.boards: list[Board] = []
+        boards = template.get("boards") or []
+        await self.add_boards(boards=boards)
 
     async def delete_board(self, board_id: str, delete_in_db: bool = False):
         """Method which allows to delete record about board on page in database"""
@@ -472,26 +456,21 @@ class Page(BaseEntity):
             {"_id": self._id}, {"$set": {"boards": self.boards}}
         )
 
-    async def pre_delete(self) -> str:
+    async def _pre_delete(self) -> str:
         ret = {"deleted_page": self._id, "deleted_boards": []}
         for board in self.boards:
             deleted_board = await board.delete_in_db()
             ret["deleted_boards"].append(deleted_board)
         return ret
 
-    def dump_to_dict(self):
-        ret: dict = self.__dict__.copy()
+    def _dump_to_dict_hook(self, ret):
         boards = []
         if self.boards:
             boards = [board.id for board in self.boards]
 
         ret["boards"] = boards
-        ret.pop("__db__", None)
 
-        if isinstance(ret, dict):
-            return ret
-        else:
-            raise TypeError("Return value is not dictionary!")
+        return ret
 
 
 @fields(
@@ -528,46 +507,24 @@ class Project(BaseEntity):
         "description": str,
         "date_of_creation": str,
         "boards": list[str] (list of IDs)} or page_id(soon)"""
-        if all(isinstance(page, str) for page in pages):
-            for id in pages:
-                self.pages.append(await Page.from_db(id=id, db=self.__db__))
-        elif all(isinstance(page, dict) for page in pages):
-            for temp in pages:
-                self.pages.append(
-                    await Page.from_template(template=temp, db=self.__db__)
-                )
-        else:
-            raise ValueError("Neither task template nor task id wasn't given!")
+        await self._add_children(
+            items=pages, cls=Page, collection=self.pages, write_to_db=write_to_db
+        )
 
-        if write_to_db:
-            await self.write_to_db()
+    async def _pre_write(self):
+        if self.pages:
+            for page in self.pages:
+                await page.write_to_db()
 
-    async def pre_write(self):
-        try:
-            if self.pages:
-                for page in self.pages:
-                    await page.write_to_db()
-        except RuntimeError:
-            RuntimeError("Page writing to db went wrong!")
+    async def _parse_hook(self, template: dict):
+        self.admin_id: int = template["admin_id"]
 
-    async def parse_dict(self, template: dict):
-        if self.check_template(template=template, necessary_keys=self.__fields__):
-            self._id: str = template["_id"]
+        self.collaborators: list[dict] = template["collaborators"]
+        self.price: int = template["price"] if template["price"] is not None else -1
 
-            self.admin_id: int = template["admin_id"]
-            self.date_of_creation: str = template["date_of_creation"]
-
-            self.name: str = template["name"]
-            self.description: str = template["description"]
-            self.collaborators: list[dict] = template["collaborators"]
-            self.price: int = template["price"] if template["price"] is not None else -1
-
-            self.pages: list[Page] = []
-            pages = template.get("pages") or []
-            await self.add_pages(pages=pages)
-
-        else:
-            raise ValueError("Template for entity creation is incorrect!")
+        self.pages: list[Page] = []
+        pages = template.get("pages") or []
+        await self.add_pages(pages=pages)
 
     async def delete_page(self, page_id: str, delete_in_db: bool = False):
         """Method which allows to delete record about page in project in database"""
@@ -581,23 +538,17 @@ class Project(BaseEntity):
             {"_id": self._id}, {"$set": {"pages": self.pages}}
         )
 
-    async def pre_delete(self) -> str:
+    async def _pre_delete(self) -> str:
         ret = {"deleted_project": self._id, "deleted_pages": []}
         for page in self.pages:
             deleted_page = await page.delete_in_db()
             ret["deleted_pages"].append(deleted_page)
         return ret
 
-    def dump_to_dict(self):
-        ret: dict = self.__dict__.copy()
+    def _dump_to_dict_hook(self, ret):
         pages = []
         if self.pages:
             pages = [page.id for page in self.pages]
 
         ret["pages"] = pages
-        ret.pop("__db__", None)
-
-        if isinstance(ret, dict):
-            return ret
-        else:
-            raise TypeError("Return value is not dictionary!")
+        return ret
