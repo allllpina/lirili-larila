@@ -24,7 +24,7 @@ class CustomField(JSON_interface):
         self.parse_dict(template)
 
     def parse_dict(self, template):
-        if self.check_template(
+        if self._check_template(
             template=template, necessary_keys=self.__necessary_keys__
         ):
             for key, type in self.__necessary_keys__.items():
@@ -33,19 +33,19 @@ class CustomField(JSON_interface):
                     setattr(self, key, value)
                 else:
                     raise TypeError(
-                        "[ERR] {} has wrong type: expected {}, got {}!"
-                        .format(self.__class__.__name__, type, type(value))
+                        "[ERR] {} has wrong type: expected {}, got {}!".format(
+                            self.__class__.__name__, type, type(value)
+                        )
                     )
         else:
             raise ValueError(
-                "[Err] {} got a wrong template!"
-                .format(self.__class__.__name__)
+                "[Err] {} got a wrong template!".format(self.__class__.__name__)
             )
 
     def dump_to_dict(self):
         return self.__dict__
 
-    def check_template(self, template: dict, necessary_keys: list):
+    def _check_template(self, template: dict, necessary_keys: list):
         """Method which checks if template has a valid structure"""
         for key in necessary_keys:
             if key not in template.keys():
@@ -68,26 +68,19 @@ class Deadline(CustomField):
     def parse_dict(self, template):
         """CustomField.parse_dict() overloading
         for realization computing field"""
-        if self.check_template(
+        if self._check_template(
             template=template, necessary_keys=Deadline.__necessary_keys__
         ):
             self.date = template["date"]
             self.is_expired = self.expiration_check()
         else:
             raise ValueError(
-                "[Err] {} got a wrong template!"
-                .format(self.__class__.__name__)
+                "[Err] {} got a wrong template!".format(self.__class__.__name__)
             )
 
     def expiration_check(self) -> bool:
         """Method that matches current date and deadline date"""
-        return (
-            datetime.strptime(
-                self.date,
-                "%d-%m-%Y %H:%M:%S"
-            )
-            < datetime.now()
-        )
+        return datetime.strptime(self.date, "%d-%m-%Y %H:%M:%S") < datetime.now()
 
 
 # {"class": "checkbox"}
