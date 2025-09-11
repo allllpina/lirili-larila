@@ -13,6 +13,6 @@ class JSON_interface(ABC):
         pass
 
     @abstractmethod
-    def check_template(self, template: dict) -> bool:
+    def _check_template(self, template: dict) -> bool:
         """Check if all fields that needed is in template"""
         pass
