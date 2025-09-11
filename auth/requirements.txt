@@ -1,10 +1,12 @@
+pydantic_settings
+email-validator
+alembic
 dotenv
 psycopg2-binary
 uvicorn
 passlib[bcrypt]
 typing
 SQLAlchemy
-datetime
 fastapi[standart]
 black
 isort
@@ -13,3 +15,9 @@ pylint
 jedi
 cryptography
 pyjwt
+asyncpg
+greenlet
+openai
+python-jose[cryptography]
+python-multipart
+sse_starlette

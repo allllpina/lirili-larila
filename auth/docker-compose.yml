@@ -1,29 +1,44 @@
 services:
   postgres:
-    image: postgres:latest
-    container_name: pg-test
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    container_name: postgres
+    image: "postgres:15"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - "5432:5432"
-
+    env_file:
+      - ./.env
     volumes:
-      - ./postgres/data:/var/lib/postgresql/data
+      - "./pgsql:/var/lib/postgresql/data"
+    networks:
+      - default
 
-  app:
+  backend:
+    container_name: auth
     build:
       context: .
-      dockerfile: containers/Dockerfile
+      dockerfile: ./containers/auth.Dockerfile
+    restart: always
+    env_file:
+      - .env
     ports:
-      - "8000:80"
-    depends_on:
+      - "8000:8000"
+    links:
       - postgres
-    volumes:
-      - ./:/src:ro
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
 
 volumes:
-  postgres:
+  pgsql:
+    driver: local
