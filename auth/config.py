@@ -1,7 +1,10 @@
+from pathlib import Path
 from typing import ClassVar
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).parent
 
 
 class Settings(BaseSettings):
@@ -18,7 +21,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         # change to env_file=".env"
-        env_file="./auth/.env",
+        env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )

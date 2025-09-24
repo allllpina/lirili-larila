@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import AsyncGenerator
 
 from config import get_settings
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
@@ -14,7 +15,7 @@ DATABASE_URL = (
     f"postgresql+asyncpg://{settings.postgres_user.get_secret_value()}:"
     f"{settings.postgres_password.get_secret_value()}@"
     f"{settings.postgres_host}:{settings.postgres_port}/"
-    f"{settings.postgres_db}"
+    f"{settings.postgres_db.get_secret_value()}"
 )
 
 # Асинхронний engine
@@ -27,7 +28,7 @@ AsyncSessionLocal = sessionmaker(
 
 
 # Залежність для FastAPI
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
 
@@ -45,4 +46,4 @@ class User(Base):
     oauth_sub = Column(String, nullable=True)
     refresh_token = Column(Text, nullable=False)
     is_superuser = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
