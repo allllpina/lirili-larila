@@ -26,7 +26,7 @@ INSERT INTO public.users (
 ) VALUES (
     'admin',
     'admin@example.com',
-    '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
+    '$2b$12$SI4UNbnWDiPGMEVLeozDs.E/k5lbEFL6PInSvJhxm.22M.NBi2.AW',
     FALSE,
     'initial_refresh_token',
     TRUE
