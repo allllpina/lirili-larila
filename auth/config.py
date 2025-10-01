@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     secret_key: SecretStr
     algorithm: ClassVar[str] = "HS256"
 
+    session_middleware_secret: SecretStr
+
     postgres_user: SecretStr
     postgres_password: SecretStr
     postgres_db: SecretStr
