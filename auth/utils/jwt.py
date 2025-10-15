@@ -14,8 +14,9 @@ class Tokenization:
         Generates JWT token using the user information
         """
         __settings = get_settings()
+
         expire = datetime.now(timezone.utc) + expires_delta
-        payload = {"sub": user_data, "exp": expire}
+        payload = {"sub": user_data["username"], "user_data": user_data, "exp": expire}
 
         return jwt.encode(
             payload,
@@ -29,6 +30,7 @@ class Tokenization:
         Decodes JWT token to parse user info
         """
         __settings = get_settings()
+
         try:
             return jwt.decode(
                 token,

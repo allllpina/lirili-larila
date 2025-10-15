@@ -1,10 +1,15 @@
-from config import DATABASE_HOST, DATABASE_NAME, DATABASE_PORT
+from typing import AsyncGenerator
+
+from config import get_settings
 from pymongo import AsyncMongoClient
+from pymongo.asynchronous.database import AsyncDatabase
+
+settings = get_settings()
 
 
-async def get_db():
-    client = AsyncMongoClient(DATABASE_HOST, DATABASE_PORT)
-    db = client.get_database(DATABASE_NAME)
+async def get_db() -> AsyncGenerator[AsyncDatabase, None]:
+    client = AsyncMongoClient(settings.database_host, settings.database_port)
+    db = client.get_database(settings.database_name.get_secret_value())
     try:
         yield db
     finally:

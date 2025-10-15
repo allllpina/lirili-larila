@@ -1,10 +1,13 @@
-from config import HTML_PATH
-from fastapi import FastAPI
+from config import get_settings
+from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse
+from models.entity_models import ProjectEdit
 from routers.boards import boards_router
 from routers.pages import pages_router
 from routers.projects import projects_router
 from routers.tasks import tasks_router
+from utils.check_access import check_if_accessable, get_user_data
+from utils.get_db import get_db
 
 app = FastAPI()
 
@@ -13,12 +16,27 @@ app.include_router(prefix="/pages", router=pages_router)
 app.include_router(prefix="/boards", router=boards_router)
 app.include_router(prefix="/tasks", router=tasks_router)
 
+settings = get_settings()
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    with open(f"{HTML_PATH}greetings.html") as f:
+    with open(f"{settings.html_path}greetings.html") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
+
+
+@app.post("/test")
+async def test(
+    request: ProjectEdit, user_data=Depends(get_user_data), db=Depends(get_db)
+):
+    """
+    Test endpoint to show, how exactly user separation works
+    """
+    res = await check_if_accessable(
+        user_id=user_data["user_data"]["id"], project_id=request.id, db=db
+    )
+    return res
 
 
 # import asyncio
