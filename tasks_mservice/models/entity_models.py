@@ -24,12 +24,14 @@ class EditModel(BaseModel):
 
 
 class CustomFieldMove(MainCRUDModel):
+    project_id: str
     taskGiverId: str
     taskReceiverId: str
     customField: dict
 
 
 class TaskMove(MainCRUDModel):
+    project_id: str
     boardGiverId: str
     boardReceiverId: str
     taskId: str
@@ -77,6 +79,7 @@ class TaskTemplate(MainCRUDModel):
 
 
 class BoardMove(MainCRUDModel):
+    project_id: str
     pageGiverId: str
     pageReceiverId: str
     boardId: str

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from entities_module.entities import Board, Page
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from models.entity_models import BoardEdit, BoardMove, BoardTemplate
 from pymongo.database import Database
 from utils.get_db import get_db
@@ -10,7 +10,9 @@ boards_router = APIRouter(tags=["boards", "CRUD"])
 
 
 @boards_router.post("/create_board", tags=["create"])
-async def create_board(board: BoardTemplate, db: Database = Depends(get_db)):
+async def create_board(
+    board: BoardTemplate, db: Database = Depends(get_db), request: Request = None
+):
     try:
         # Can be changed to JWT
         data = board.model_dump(by_alias=True)
@@ -23,6 +25,11 @@ async def create_board(board: BoardTemplate, db: Database = Depends(get_db)):
         page = await Page.from_db(id=page_id, db=db)
         try:
             await page.add_boards(boards=[data], write_to_db=True)
+
+            await request.app.state.SOCKETS.broadcast(
+                room=board.project_id,
+                message={"category": "boards", "content": data, "operation": "create"},
+            )
 
             return data
         except RuntimeError as e:
@@ -43,7 +50,9 @@ async def get_board(user_id: int, board_id: str, db: Database = Depends(get_db))
 
 
 @boards_router.put("/edit_board", tags=["edit"])
-async def edit_board(board_template: BoardEdit, db: Database = Depends(get_db)):
+async def edit_board(
+    board_template: BoardEdit, db: Database = Depends(get_db), request: Request = None
+):
     try:
         data = board_template.model_dump(exclude_none=True, by_alias=True)
         _ = data.pop("user_id", None)
@@ -52,6 +61,11 @@ async def edit_board(board_template: BoardEdit, db: Database = Depends(get_db)):
 
         await board.update(**data)
 
+        await request.app.state.SOCKETS.broadcast(
+            room=board.project_id,
+            message={"category": "boards", "content": data, "operation": "edit"},
+        )
+
         return board.dump_to_dict()
 
     except HTTPException as e:
@@ -59,18 +73,27 @@ async def edit_board(board_template: BoardEdit, db: Database = Depends(get_db)):
 
 
 @boards_router.delete("/delete_board", tags=["delete"])
-async def delete_board(board_id: str, db: Database = Depends(get_db)):
+async def delete_board(
+    board_id: str, db: Database = Depends(get_db), request: Request = None
+):
     # Make it to depend on Project instance
     try:
         board = await Board.from_db(id=board_id, db=db)
         ret = await board.delete_in_db()
+
+        await request.app.state.SOCKETS.broadcast(
+            room=board.project_id,
+            message={"category": "boards", "content": None, "operation": "delete"},
+        )
         return ret
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @boards_router.put("/move_board", tags=["move"])
-async def move_board(request: BoardMove, db: Database = Depends(get_db)):
+async def move_board(
+    request: BoardMove, db: Database = Depends(get_db), req: Request = None
+):
     try:
         pageGiver = await Page.from_db(id=request.pageGiverId, db=db)
         pageReceiver = await Page.from_db(id=request.pageReceiverId, db=db)
@@ -78,6 +101,10 @@ async def move_board(request: BoardMove, db: Database = Depends(get_db)):
         await pageReceiver.add_boards(boards=[request.boardId], write_to_db=True)
         await pageGiver.delete_board(board_id=request.boardId)
 
+        await req.app.state.SOCKETS.broadcast(
+            room=request.project_id,
+            message={"category": "boards", "content": request, "operation": "move"},
+        )
         return True
 
     except HTTPException as e:

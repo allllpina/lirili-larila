@@ -8,15 +8,17 @@ from routers.projects import projects_router
 from routers.tasks import tasks_router
 from utils.check_access import check_if_accessable, get_user_data
 from utils.get_db import get_db
+from utils.websocket_hub import WSHub
 
 app = FastAPI()
+
+settings = get_settings()
+app.state.SOCKETS = WSHub()
 
 app.include_router(prefix="/projects", router=projects_router)
 app.include_router(prefix="/pages", router=pages_router)
 app.include_router(prefix="/boards", router=boards_router)
 app.include_router(prefix="/tasks", router=tasks_router)
-
-settings = get_settings()
 
 
 @app.get("/", response_class=HTMLResponse)

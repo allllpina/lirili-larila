@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from entities_module.entities import Project
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from models.entity_models import ProjectEdit, ProjectTemplate
 from pymongo.asynchronous.database import AsyncDatabase
 from utils.check_access import get_user_data
@@ -105,3 +105,21 @@ async def delete_project(project_id: str, db: AsyncDatabase = Depends(get_db)):
         return ret
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@projects_router.websocket("/ws/{project_id}")
+async def websocket_endpoint(websocket: WebSocket, project_id: str):
+    """
+    Endpoint for websocket connection
+    """
+    await websocket.app.state.SOCKETS.connect_to_room(
+        room=project_id, websocket=websocket
+    )
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        websocket.app.state.SOCKETS.disconnect_from_room(
+            room=project_id, websocket=websocket
+        )
