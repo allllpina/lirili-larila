@@ -107,6 +107,17 @@ async def delete_project(project_id: str, db: AsyncDatabase = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@projects_router.get("/get_cost_evaluation/{project_id}")
+async def get_cost_evaluation(project_id: str, db: AsyncDatabase = Depends(get_db)):
+    try:
+        project = await Project.from_db(project_id, db=db)
+
+        return project.calculate_project_cost()
+
+    except HTTPException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @projects_router.websocket("/ws/{project_id}")
 async def websocket_endpoint(websocket: WebSocket, project_id: str):
     """

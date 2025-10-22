@@ -3,6 +3,7 @@ from datetime import datetime
 
 from entities_module.custom_fields import CustomField, custom_fields
 from entities_module.interfaces import JSON_interface
+from models.entity_models import Collaborator
 
 # from pymongo import AsyncMongoClient
 from pymongo.database import Database
@@ -124,10 +125,10 @@ class BaseEntity(JSON_interface):
         else:
             raise ValueError("Template for entity creation is incorrect!")
 
-    def dump_to_dict(self):
+    def dump_to_dict(self, full=False):
         ret: dict = {key: getattr(self, key, None) for key in self.__fields__}
 
-        ret = self._dump_to_dict_hook(ret=ret)
+        ret = self._dump_to_dict_hook(ret=ret, full=full)
         ret.pop("__db__", None)
 
         if isinstance(ret, dict):
@@ -169,7 +170,7 @@ class BaseEntity(JSON_interface):
         }
 
     # HOOKS
-    def _dump_to_dict_hook(self, ret):
+    def _dump_to_dict_hook(self, ret, full=False):
         """Hook which dumps all child instances in db"""
         pass
 
@@ -241,7 +242,7 @@ class BaseEntity(JSON_interface):
         "priority": str,
         "time_to_complete": float,
         "custom_fields": list[CustomField],
-        "collaborators": list[dict],
+        "collaborators": list[Collaborator],
     },
     updatable_fields={
         "name": str,
@@ -252,7 +253,7 @@ class BaseEntity(JSON_interface):
         "priority": str,
         "time_to_complete": float,
         "custom_fields": list[CustomField],
-        "collaborators": list[dict],
+        "collaborators": list[Collaborator],
     },
 )
 class Task(BaseEntity):
@@ -277,7 +278,7 @@ class Task(BaseEntity):
             await self.write_to_db()
 
     async def _parse_hook(self, template: dict):
-        self.collaborators: list[dict] = template["collaborators"]
+        self.collaborators: list[Collaborator] = template["collaborators"]
         self.status: str = template["status"]
         self.tags: list[str] = template["tags"]
 
@@ -309,7 +310,7 @@ class Task(BaseEntity):
             {"_id": self._id}, {"$set": {"tasks": self.custom_fields}}
         )
 
-    def _dump_to_dict_hook(self, ret):
+    def _dump_to_dict_hook(self, ret, full=False):
         custom_fields_: list[str] = []
 
         if self.custom_fields:
@@ -318,6 +319,33 @@ class Task(BaseEntity):
         ret["custom_fields"] = custom_fields_
 
         return ret
+
+    def calculate_task_cost(self) -> dict | None:
+        """
+        Method that calculates cost of the task regarding on time to complete.
+        Calculation happens only if `Task.status` == "complete"
+        """
+        if self.status != "complete":
+            return None
+
+        overall_cost: float = sum(
+            [
+                employee["salary"] * self.time_to_complete
+                for employee in self.collaborators
+            ]
+        )
+
+        per_collab: list = []
+
+        for emploee in self.collaborators:
+            emploee["salary"] *= self.time_to_complete
+            per_collab.append(emploee)
+
+        return {
+            "overall_cost_for_task": overall_cost,
+            "task_name": self.name,
+            "details": per_collab,
+        }
 
 
 @fields(
@@ -394,14 +422,38 @@ class Board(BaseEntity):
             ret["deleted_tasks"].append(deleted_task)
         return ret
 
-    def _dump_to_dict_hook(self, ret):
+    def _dump_to_dict_hook(self, ret, full=False):
         tasks = []
         if self.tasks:
-            tasks = [task.id for task in self.tasks]
+            if full:
+                tasks = [task.dump_to_dict(full=full) for task in self.tasks]
+            else:
+                tasks = [task.id for task in self.tasks]
 
         ret["tasks"] = tasks
 
         return ret
+
+    def calculate_board_cost(self) -> dict | None:
+        overall_cost: float = 0
+        per_task: list = []
+
+        for task in self.tasks:
+            if task is None:
+                continue
+
+            task = task.calculate_task_cost()
+
+            overall_cost += task["overall_cost_for_task"]
+            per_task.append(task)
+
+        if per_task:
+            return {
+                "overall_cost_for_board": overall_cost,
+                "board_name": self.name,
+                "details": per_task,
+            }
+        return None
 
 
 @fields(
@@ -463,14 +515,38 @@ class Page(BaseEntity):
             ret["deleted_boards"].append(deleted_board)
         return ret
 
-    def _dump_to_dict_hook(self, ret):
+    def _dump_to_dict_hook(self, ret, full=False):
         boards = []
         if self.boards:
-            boards = [board.id for board in self.boards]
+            if full:
+                boards = [board.dump_to_dict(full=full) for board in self.boards]
+            else:
+                boards = [board.id for board in self.boards]
 
         ret["boards"] = boards
 
         return ret
+
+    def calculate_page_cost(self) -> dict | None:
+        overall_cost: float = 0
+        per_board: list = []
+
+        for board in self.boards:
+            if board is None:
+                continue
+
+            board = board.calculate_board_cost()
+
+            overall_cost += board["overall_cost_for_board"]
+            per_board.append(board)
+
+        if per_board:
+            return {
+                "overall_cost_for_page": overall_cost,
+                "page_name": self.name,
+                "details": per_board,
+            }
+        return None
 
 
 @fields(
@@ -479,7 +555,7 @@ class Page(BaseEntity):
         "admin_id": int,
         "name": str,
         "description": str,
-        "collaborators": list[dict],
+        "collaborators": list[Collaborator],
         "price": int,
         "date_of_creation": str,
         "pages": list[str],
@@ -487,7 +563,7 @@ class Page(BaseEntity):
     updatable_fields={
         "name": str,
         "description": str,
-        "collaborators": list[dict],
+        "collaborators": list[Collaborator],
         "price": int,
         "pages": list[str],
     },
@@ -519,7 +595,7 @@ class Project(BaseEntity):
     async def _parse_hook(self, template: dict):
         self.admin_id: int = template["admin_id"]
 
-        self.collaborators: list[dict] = template["collaborators"]
+        self.collaborators: list[Collaborator] = template["collaborators"]
         self.price: int = template["price"] if template["price"] is not None else -1
 
         self.pages: list[Page] = []
@@ -545,10 +621,34 @@ class Project(BaseEntity):
             ret["deleted_pages"].append(deleted_page)
         return ret
 
-    def _dump_to_dict_hook(self, ret):
+    def _dump_to_dict_hook(self, ret, full=False):
         pages = []
         if self.pages:
-            pages = [page.id for page in self.pages]
+            if full:
+                pages = [page.dump_to_dict(full=full) for page in self.pages]
+            else:
+                pages = [page.id for page in self.pages]
 
         ret["pages"] = pages
         return ret
+
+    def calculate_project_cost(self) -> dict | None:
+        overall_cost: float = 0
+        per_page: list = []
+
+        for page in self.pages:
+            if page is None:
+                continue
+
+            page = page.calculate_page_cost()
+
+            overall_cost += page["overall_cost_for_page"]
+            per_page.append(page)
+
+        if per_page:
+            return {
+                "overall_cost_for_project": overall_cost,
+                "page_name": self.name,
+                "details": per_page,
+            }
+        return None
