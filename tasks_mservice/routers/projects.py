@@ -118,6 +118,16 @@ async def get_cost_evaluation(project_id: str, db: AsyncDatabase = Depends(get_d
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@projects_router.get("/get_full_project/{project_id}")
+async def get_full_project(project_id: str, db: AsyncDatabase = Depends(get_db)):
+    try:
+        project = await Project.from_db(id=project_id, db=db)
+
+        return project.dump_to_dict(full=True)
+    except HTTPException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @projects_router.websocket("/ws/{project_id}")
 async def websocket_endpoint(websocket: WebSocket, project_id: str):
     """
