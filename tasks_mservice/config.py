@@ -1,15 +1,31 @@
-import os
-from os.path import dirname, join
+from pathlib import Path
+from typing import ClassVar
 
-from dotenv import load_dotenv
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-path = join(dirname(__file__), ".env")
-res = load_dotenv(dotenv_path=path)
-if res:
-    DATABASE_HOST = os.environ.get("DATABASE_HOST")
-    DATABASE_PORT = int(os.environ.get("DATABASE_PORT"))
-    DATABASE_NAME = os.environ.get("DATABASE_NAME")
+BASE_DIR = Path(__file__).parent
 
-    HTML_PATH = os.environ.get("HTML_PATH")
-else:
-    raise EnvironmentError("Unable to load environmental variables")
+
+class Settings(BaseSettings):
+    database_host: str
+    database_port: int
+    database_name: SecretStr
+    html_path: str
+
+    jwt_key: SecretStr
+    algorithm: ClassVar[str] = "HS256"
+
+    google_ai_api_key = SecretStr
+    google_model = str
+
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+def get_settings() -> Settings:
+    settings = Settings()
+    return settings

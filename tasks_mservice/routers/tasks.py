@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from entities_module.entities import Board, Task
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from models.entity_models import CustomFieldMove, TaskEdit, TaskMove, TaskTemplate
 from pymongo.database import Database
 from utils.get_db import get_db
@@ -10,7 +10,9 @@ tasks_router = APIRouter(tags=["task", "CRUD"])
 
 
 @tasks_router.post("/create_task", tags=["tasks", "create"])
-async def create_task(task: TaskTemplate, db: Database = Depends(get_db)):
+async def create_task(
+    task: TaskTemplate, db: Database = Depends(get_db), request: Request = None
+):
     try:
         # Can be changed to JWT
         data = task.model_dump(by_alias=True)
@@ -24,6 +26,10 @@ async def create_task(task: TaskTemplate, db: Database = Depends(get_db)):
         try:
             await board.add_tasks(tasks=[data], write_to_db=True)
 
+            await request.app.state.SOCKETS.broadcast(
+                room=task.project_id,
+                message={"category": "tasks", "content": data, "operation": "create"},
+            )
             return data
         except RuntimeError as e:
             raise e
@@ -43,7 +49,9 @@ async def get_task(user_id: int, task_id: str, db: Database = Depends(get_db)):
 
 
 @tasks_router.put("/edit_task", tags=["tasks", "edit"])
-async def edit_task(task_template: TaskEdit, db: Database = Depends(get_db)):
+async def edit_task(
+    task_template: TaskEdit, db: Database = Depends(get_db), request: Request = None
+):
     try:
         data = task_template.model_dump(exclude_none=True, by_alias=True)
         _ = data.pop("user_id")
@@ -52,6 +60,11 @@ async def edit_task(task_template: TaskEdit, db: Database = Depends(get_db)):
 
         await task.update(**data)
 
+        await request.app.state.SOCKETS.broadcast(
+            room=task.project_id,
+            message={"category": "tasks", "content": data, "operation": "edit"},
+        )
+
         return task.dump_to_dict()
 
     except HTTPException as e:
@@ -59,24 +72,38 @@ async def edit_task(task_template: TaskEdit, db: Database = Depends(get_db)):
 
 
 @tasks_router.delete("/delete_task", tags=["delete"])
-async def delete_task(task_id: str, db: Database = Depends(get_db)):
+async def delete_task(
+    task_id: str, db: Database = Depends(get_db), request: Request = None
+):
     # Make it to depend on Project instance
     try:
         task = await Task.from_db(task_id=task_id, db=db)
         ret = await task.delete_in_db()
+
+        await request.app.state.SOCKETS.broadcast(
+            room=task.project_id,
+            message={"category": "tasks", "content": None, "operation": "delete"},
+        )
         return ret
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @tasks_router.put("/move_task", tags=["move"])
-async def move_task(request: TaskMove, db: Database = Depends(get_db)):
+async def move_task(
+    request: TaskMove, db: Database = Depends(get_db), req: Request = None
+):
     try:
         boardGiver = await Board.from_db(id=request.boardGiverId, db=db)
         boardReceiver = await Board.from_db(id=request.boardReceiverId, db=db)
 
         await boardReceiver.add_tasks(tasks=[request.taskId], write_to_db=True)
         await boardGiver.delete_task(task_id=request.taskId)
+
+        await req.app.state.SOCKETS.broadcast(
+            room=request.project_id,
+            message={"category": "tasks", "content": request, "operation": "create"},
+        )
 
         return True
 
@@ -85,7 +112,9 @@ async def move_task(request: TaskMove, db: Database = Depends(get_db)):
 
 
 @tasks_router.put("/move_custom_field", tags=["move"])
-async def move_custom_field(request: CustomFieldMove, db: Database = Depends(get_db)):
+async def move_custom_field(
+    request: CustomFieldMove, db: Database = Depends(get_db), req: Request = None
+):
     try:
         taskGiver = await Task.from_db(id=request.taskGiverId, db=db)
         taskReceiver = await Task.from_db(id=request.taskReceiverId, db=db)
@@ -94,6 +123,11 @@ async def move_custom_field(request: CustomFieldMove, db: Database = Depends(get
             template=request.customField, write_to_db=True
         )
         await taskGiver.delete_custom_field(custom_field=request.customField)
+
+        await request.app.state.SOCKETS.broadcast(
+            room=request.project_id,
+            message={"category": "tasks", "content": request, "operation": "create"},
+        )
 
         return True
 
