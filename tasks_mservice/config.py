@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     jwt_key: SecretStr
     algorithm: ClassVar[str] = "HS256"
 
-    google_ai_api_key = SecretStr
-    google_model = str
+    google_ai_api_key: SecretStr
+    google_model: str
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

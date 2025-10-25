@@ -1,9 +1,10 @@
 from datetime import datetime
 
-from entities_module.entities import Project
+from entities_module.entities import Project, Task
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from models.entity_models import ProjectEdit, ProjectTemplate
 from pymongo.asynchronous.database import AsyncDatabase
+from utils.ai_processing import GoogleAIProcessor as AI
 from utils.check_access import get_user_data
 from utils.get_db import get_db
 
@@ -102,28 +103,48 @@ async def delete_project(project_id: str, db: AsyncDatabase = Depends(get_db)):
     try:
         project = await Project.from_db(id=project_id, db=db)
         ret = await project.delete_in_db()
+
+        collection = db.get_collection("users")
+        await collection.delete_one({"_id": project_id})
         return ret
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@projects_router.get("/get_cost_evaluation/{project_id}")
-async def get_cost_evaluation(project_id: str, db: AsyncDatabase = Depends(get_db)):
+@projects_router.get("/get_cost_evaluation")
+async def get_cost_evaluation(
+    project_id: str, rewrite: bool, db: AsyncDatabase = Depends(get_db)
+):
     try:
         project = await Project.from_db(project_id, db=db)
 
-        return project.calculate_project_cost()
+        response = await project.calculate_project_cost(rewrite=rewrite)
+
+        return response
 
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@projects_router.get("/get_full_project/{project_id}")
-async def get_full_project(project_id: str, db: AsyncDatabase = Depends(get_db)):
+@projects_router.get("/get_priority_evaluation/{project_id}")
+async def get_priority_evaluation(project_id: str, db: AsyncDatabase = Depends(get_db)):
     try:
-        project = await Project.from_db(id=project_id, db=db)
 
-        return project.dump_to_dict(full=True)
+        project: Project = await Project.from_db(id=project_id, db=db)
+
+        response = await AI.get_priority_and_recomendations(
+            content=project.dump_to_dict(full=True)
+        )
+        changed_tasks = []
+        for task_info in response.parsed.prioritized_tasks:
+            task: Task = await Task.from_db(task_info.task_id, db=db)
+            await task.update(priority=task_info.priority)
+            changed_tasks.append(task.dump_to_dict())
+        return {
+            "changed_tasks": changed_tasks,
+            "recomendations": response.parsed.recommendations,
+        }
+
     except HTTPException as e:
         raise HTTPException(status_code=500, detail=str(e))
 

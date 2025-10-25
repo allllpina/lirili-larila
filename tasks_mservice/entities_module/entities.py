@@ -320,7 +320,7 @@ class Task(BaseEntity):
 
         return ret
 
-    def calculate_task_cost(self) -> dict | None:
+    async def calculate_task_cost(self, rewrite=False) -> dict | None:
         """
         Method that calculates cost of the task regarding on time to complete.
         Calculation happens only if `Task.status` == "complete"
@@ -330,7 +330,7 @@ class Task(BaseEntity):
 
         overall_cost: float = sum(
             [
-                employee["salary"] * self.time_to_complete
+                employee.get("salary") * self.time_to_complete
                 for employee in self.collaborators
             ]
         )
@@ -338,8 +338,13 @@ class Task(BaseEntity):
         per_collab: list = []
 
         for emploee in self.collaborators:
-            emploee["salary"] *= self.time_to_complete
+            empl_copy = emploee.copy()
+            empl_copy["salary"] *= self.time_to_complete
             per_collab.append(emploee)
+
+        if rewrite:
+            self.price = overall_cost
+            await self.write_to_db()
 
         return {
             "overall_cost_for_task": overall_cost,
@@ -354,7 +359,6 @@ class Task(BaseEntity):
         "project_id": str,
         "name": str,
         "description": str,
-        "priority": str,
         "date_of_creation": str,
         "tasks": list[Task],
     },
@@ -362,7 +366,6 @@ class Task(BaseEntity):
         "project_id": str,
         "name": str,
         "description": str,
-        "priority": str,
         "tasks": list[Task],
     },
 )
@@ -397,8 +400,6 @@ class Board(BaseEntity):
                 await task.write_to_db()
 
     async def _parse_hook(self, template: dict):
-        self.priority: str = template["priority"]
-
         self.tasks: list[Task] = []
         tasks = template.get("tasks") or []
         await self.add_tasks(tasks=tasks)
@@ -434,18 +435,14 @@ class Board(BaseEntity):
 
         return ret
 
-    def calculate_board_cost(self) -> dict | None:
+    async def calculate_board_cost(self, rewrite=False) -> dict | None:
         overall_cost: float = 0
         per_task: list = []
-
         for task in self.tasks:
-            if task is None:
-                continue
-
-            task = task.calculate_task_cost()
-
-            overall_cost += task["overall_cost_for_task"]
-            per_task.append(task)
+            task = await task.calculate_task_cost(rewrite=rewrite)
+            if task is not None:
+                overall_cost += task["overall_cost_for_task"]
+                per_task.append(task)
 
         if per_task:
             return {
@@ -527,18 +524,15 @@ class Page(BaseEntity):
 
         return ret
 
-    def calculate_page_cost(self) -> dict | None:
+    async def calculate_page_cost(self, rewrite=False) -> dict | None:
         overall_cost: float = 0
         per_board: list = []
 
         for board in self.boards:
-            if board is None:
-                continue
-
-            board = board.calculate_board_cost()
-
-            overall_cost += board["overall_cost_for_board"]
-            per_board.append(board)
+            board = await board.calculate_board_cost(rewrite=rewrite)
+            if board:
+                overall_cost += board["overall_cost_for_board"]
+                per_board.append(board)
 
         if per_board:
             return {
@@ -632,18 +626,19 @@ class Project(BaseEntity):
         ret["pages"] = pages
         return ret
 
-    def calculate_project_cost(self) -> dict | None:
+    async def calculate_project_cost(self, rewrite=False) -> dict:
         overall_cost: float = 0
         per_page: list = []
 
         for page in self.pages:
-            if page is None:
-                continue
+            page = await page.calculate_page_cost(rewrite=rewrite)
+            if page:
+                overall_cost += page["overall_cost_for_page"]
+                per_page.append(page)
 
-            page = page.calculate_page_cost()
-
-            overall_cost += page["overall_cost_for_page"]
-            per_page.append(page)
+        if rewrite:
+            self.price = overall_cost
+            await self.write_to_db()
 
         if per_page:
             return {
@@ -651,4 +646,6 @@ class Project(BaseEntity):
                 "page_name": self.name,
                 "details": per_page,
             }
-        return None
+        return {
+            "Error": "Unable to calculate project cost, most likely because `time_to_complete` isn't set"
+        }

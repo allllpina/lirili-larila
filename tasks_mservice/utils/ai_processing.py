@@ -32,6 +32,8 @@ class GoogleAIProcessor:
             3.  **Constraints**: Allowed priority values are: "low", "medium", or "high".
             4.  **Recommendations**: Provide 2-3 general, useful recommendations for the successful completion
             of the project.
+            5.  **Important**: DO NOT TOUCH tasks where priority is already set. You allowed to set priority only for
+            tasks with priority value of `None`
 
             You MUST return the response exclusively as a SINGLE valid JSON object.
             Do not add any text before or after the JSON (e.g., ```json).

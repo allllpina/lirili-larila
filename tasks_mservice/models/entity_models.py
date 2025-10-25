@@ -1,4 +1,4 @@
-from typing import ClassVar, List, Optional, Union
+from typing import Annotated, ClassVar, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -8,7 +8,7 @@ class MainCRUDModel(BaseModel):
 
 
 class Collaborator(BaseModel):
-    user_id: int
+    usr_id: int
     role: str
     salary: float
 
@@ -23,11 +23,39 @@ class EditModel(BaseModel):
         return values
 
 
+class Deadline(BaseModel):
+    type: Literal["deadline_date"]
+    date: str
+    is_expired: bool
+
+
+class Checkbox(BaseModel):
+    type: Literal["checkbox"]
+    checked: bool
+    text: str
+
+
+class Text(BaseModel):
+    type: Literal["text"]
+    text: str
+
+
+class Dropdown(BaseModel):
+    type: Literal["dropdown"]
+    elements: List[str]
+    index_of_selected: int
+
+
+CustomField = Annotated[
+    Union[Deadline, Checkbox, Text, Dropdown], Field(discriminator="type")
+]
+
+
 class CustomFieldMove(MainCRUDModel):
     project_id: str
     taskGiverId: str
     taskReceiverId: str
-    customField: dict
+    customField: CustomField
 
 
 class TaskMove(MainCRUDModel):
@@ -60,7 +88,7 @@ class TaskEdit(EditModel, MainCRUDModel):
     status: Optional[str] = None
     tags: Optional[List[str]] = None
     time_to_complete: Optional[float] = None
-    custom_fields: Optional[List[dict]] = None
+    custom_fields: Optional[List[CustomField]] = None
 
 
 class TaskTemplate(MainCRUDModel):
@@ -71,11 +99,11 @@ class TaskTemplate(MainCRUDModel):
     description: str
     collaborators: List[Collaborator]
     price: float
-    priority: str
-    status: str
+    priority: Literal["low", "medium", "high", "None"]
+    status: Literal["complete", "in progress", "not done"]
     tags: List[str]
     time_to_complete: float
-    custom_fields: List[dict]
+    custom_fields: List[CustomField]
 
 
 class BoardMove(MainCRUDModel):
@@ -89,7 +117,6 @@ class BoardEdit(EditModel, MainCRUDModel):
     fields_to_check: ClassVar[list[str]] = [
         "name",
         "description",
-        "priority",
         "tasks",
         "project_id",
     ]
@@ -98,7 +125,6 @@ class BoardEdit(EditModel, MainCRUDModel):
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
-    priority: Optional[str] = None
     tasks: Optional[List[Union[str, TaskTemplate]]] = None
 
 
@@ -108,7 +134,6 @@ class BoardTemplate(MainCRUDModel):
     page_id: str
     name: str
     description: str
-    priority: str
     tasks: List[Union[str, TaskTemplate]]
 
 
@@ -142,7 +167,7 @@ class ProjectEdit(EditModel, MainCRUDModel):
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
-    collaborators: Optional[List[dict]] = None
+    collaborators: Optional[List[Collaborator]] = None
     price: Optional[float] = None
     pages: Optional[List[Union[str, PageTemplate]]] = None
 
@@ -152,6 +177,6 @@ class ProjectTemplate(MainCRUDModel):
     admin_id: int
     name: str
     description: str
-    collaborators: List[dict]
+    collaborators: List[Collaborator]
     price: float
     pages: List[Union[str, PageTemplate]]
