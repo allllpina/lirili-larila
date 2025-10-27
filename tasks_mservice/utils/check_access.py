@@ -9,11 +9,16 @@ auth_scheme = HTTPBearer()
 settings = get_settings()
 
 
-def get_user_data(credentials: HTTPAuthorizationCredentials = Depends(auth_scheme)):
+def get_user_data(
+    credentials: HTTPAuthorizationCredentials | str = Depends(auth_scheme),
+):
     """
     Function that gets user info from token Bearer in HTTP Authorization header
     """
-    token = credentials.credentials
+    if isinstance(credentials, str):
+        token = credentials
+    else:
+        token = credentials.credentials
 
     try:
         payload = jwt.decode(

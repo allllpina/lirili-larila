@@ -14,6 +14,7 @@ class Collaborator(BaseModel):
 
 
 class EditModel(BaseModel):
+    project_id: str
     fields_to_check: ClassVar[list[str]] = []
 
     @model_validator(mode="before")

@@ -2,10 +2,11 @@ from datetime import datetime
 
 from entities_module.entities import Project, Task
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from jose import JWTError
 from models.entity_models import ProjectEdit, ProjectTemplate
 from pymongo.asynchronous.database import AsyncDatabase
 from utils.ai_processing import GoogleAIProcessor as AI
-from utils.check_access import get_user_data
+from utils.check_access import check_if_accessable, get_user_data
 from utils.get_db import get_db
 
 projects_router = APIRouter(tags=["projects", "CRUD"])
@@ -69,9 +70,23 @@ async def get_projects(
 
 @projects_router.get("/get_project", tags=["projects", "read"])
 async def get_project(
-    user_id: int, project_id: str, db: AsyncDatabase = Depends(get_db)
+    project_id: str,
+    db: AsyncDatabase = Depends(get_db),
+    user_data=Depends(get_user_data),
 ):
     try:
+        # Check, if user have an access to CRUD with this project
+        is_accessible = await check_if_accessable(
+            user_id=user_data["user_data"]["id"],
+            project_id=project_id,
+            db=db,
+        )
+        if not is_accessible:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this resource.",
+            )
+
         project = await Project.from_db(project_id, db=db)
 
         return project.dump_to_dict()
@@ -82,11 +97,24 @@ async def get_project(
 
 @projects_router.put("/edit_project", tags=["projects", "edit"])
 async def edit_project(
-    project_template: ProjectEdit, db: AsyncDatabase = Depends(get_db)
+    project_template: ProjectEdit,
+    db: AsyncDatabase = Depends(get_db),
+    user_data=Depends(get_user_data),
 ):
     try:
+        # Check, if user have an access to CRUD with this project
+        is_accessible = await check_if_accessable(
+            user_id=user_data["user_data"]["id"],
+            project_id=project_template.id,
+            db=db,
+        )
+        if not is_accessible:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this resource.",
+            )
+
         data = project_template.model_dump(exclude_none=True, by_alias=True)
-        _ = data.pop("user_id", None)
         project_id = data.pop("_id", None)
         project = await Project.from_db(id=project_id, db=db)
 
@@ -99,8 +127,24 @@ async def edit_project(
 
 
 @projects_router.delete("/delete_project", tags=["projects", "delete"])
-async def delete_project(project_id: str, db: AsyncDatabase = Depends(get_db)):
+async def delete_project(
+    project_id: str,
+    db: AsyncDatabase = Depends(get_db),
+    user_data=Depends(get_user_data),
+):
     try:
+        # Check, if user have an access to CRUD with this project
+        is_accessible = await check_if_accessable(
+            user_id=user_data["user_data"]["id"],
+            project_id=project_id,
+            db=db,
+        )
+        if not is_accessible:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this resource.",
+            )
+
         project = await Project.from_db(id=project_id, db=db)
         ret = await project.delete_in_db()
 
@@ -113,9 +157,24 @@ async def delete_project(project_id: str, db: AsyncDatabase = Depends(get_db)):
 
 @projects_router.get("/get_cost_evaluation")
 async def get_cost_evaluation(
-    project_id: str, rewrite: bool, db: AsyncDatabase = Depends(get_db)
+    project_id: str,
+    rewrite: bool,
+    db: AsyncDatabase = Depends(get_db),
+    user_data=Depends(get_user_data),
 ):
     try:
+        # Check, if user have an access to CRUD with this project
+        is_accessible = await check_if_accessable(
+            user_id=user_data["user_data"]["id"],
+            project_id=project_id,
+            db=db,
+        )
+        if not is_accessible:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this resource.",
+            )
+
         project = await Project.from_db(project_id, db=db)
 
         response = await project.calculate_project_cost(rewrite=rewrite)
@@ -126,9 +185,24 @@ async def get_cost_evaluation(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@projects_router.get("/get_priority_evaluation/{project_id}")
-async def get_priority_evaluation(project_id: str, db: AsyncDatabase = Depends(get_db)):
+@projects_router.get("/get_priority_evaluation")
+async def get_priority_evaluation(
+    project_id: str,
+    db: AsyncDatabase = Depends(get_db),
+    user_data=Depends(get_user_data),
+):
     try:
+        # Check, if user have an access to CRUD with this project
+        is_accessible = await check_if_accessable(
+            user_id=user_data["user_data"]["id"],
+            project_id=project_id,
+            db=db,
+        )
+        if not is_accessible:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this resource.",
+            )
 
         project: Project = await Project.from_db(id=project_id, db=db)
 
@@ -150,10 +224,34 @@ async def get_priority_evaluation(project_id: str, db: AsyncDatabase = Depends(g
 
 
 @projects_router.websocket("/ws/{project_id}")
-async def websocket_endpoint(websocket: WebSocket, project_id: str):
+async def websocket_endpoint(
+    websocket: WebSocket, project_id: str, db: AsyncDatabase = Depends(get_db)
+):
     """
     Endpoint for websocket connection
     """
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1000, reason="No JWT token in query parameters")
+        return
+
+    try:
+        user_data = get_user_data(credentials=token)
+        user_data = user_data["user_data"]
+        user_id = user_data["id"]
+    except JWTError:
+        await websocket.close(code=1000, reason="JWT token is not valid")
+        return
+
+    is_accessible = await check_if_accessable(
+        user_id=user_id, project_id=project_id, db=db
+    )
+    if not is_accessible:
+        await websocket.close(
+            code=4003, reason="User with such id cannot access this project"
+        )
+        return
+
     await websocket.app.state.SOCKETS.connect_to_room(
         room=project_id, websocket=websocket
     )
