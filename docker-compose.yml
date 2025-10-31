@@ -1,0 +1,69 @@
+version: "3.9"
+
+networks:
+  backend:
+    driver: bridge
+
+services:
+  # ========================
+  # Nginx Gateway
+  # ========================
+  nginx:
+    build: ./nginx
+    ports:
+      - "1313:1313"
+    depends_on:
+      - auth_service
+      - tasks_service
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # ========================
+  # Auth Service
+  # ========================
+  auth_service:
+    build: ./auth
+    depends_on:
+      - db-users
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # ========================
+  # Tasks Service
+  # ========================
+  tasks_service:
+    build: ./tasks_mservice
+    depends_on:
+      - db-tasks
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # ========================
+  # PostgreSQL
+  # ========================
+  db-users:
+    build: ./db_users
+    env_file: ./db_users/.env
+    volumes:
+      - db_users_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # ========================
+  # MongoDB
+  # ========================
+  db-tasks:
+    image: mongo:latest
+    volumes:
+      - db_tasks_data:/data/db
+    networks:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db_users_data:
+  db_tasks_data:

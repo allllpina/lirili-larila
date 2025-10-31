@@ -13,7 +13,11 @@ projects_router = APIRouter(tags=["projects", "CRUD"])
 
 
 @projects_router.post("/create_project", tags=["projects", "create"])
-async def create_project(project: ProjectTemplate, db: AsyncDatabase = Depends(get_db)):
+async def create_project(
+    project: ProjectTemplate,
+    db: AsyncDatabase = Depends(get_db),
+    user=Depends(get_user_data),
+):
     try:
         # Can be changed to JWT
         data = project.model_dump(by_alias=True)
@@ -24,7 +28,7 @@ async def create_project(project: ProjectTemplate, db: AsyncDatabase = Depends(g
         project: Project = await Project.from_template(template=data, db=db)
 
         # to change when JWT is complete
-        user_id = data.pop("user_id")
+        user_id = user["user_data"]["id"]
         try:
             collection = db.get_collection("users")
             data_to_write = {

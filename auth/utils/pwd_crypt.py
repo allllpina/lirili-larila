@@ -1,17 +1,15 @@
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import hashlib
 
 
 def hash_password(password: str) -> str:
     """
-    Hashing password
+    Хешуємо пароль за допомогою SHA-256
     """
-    return pwd_context.hash(password)
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Checks if password is matching the hashed one
+    Перевіряємо, чи збігається хеш
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return hash_password(plain_password) == hashed_password

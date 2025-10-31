@@ -5,7 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 settings = get_settings()
 
-app = FastAPI()
+app = FastAPI(title="Auth service", version="1.0.0", root_path="/auth")
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.session_middleware_secret.get_secret_value(),

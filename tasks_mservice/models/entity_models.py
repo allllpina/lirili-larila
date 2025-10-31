@@ -3,10 +3,6 @@ from typing import Annotated, ClassVar, List, Literal, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
 
-class MainCRUDModel(BaseModel):
-    user_id: Optional[int] = None
-
-
 class Collaborator(BaseModel):
     usr_id: int
     role: str
@@ -52,21 +48,21 @@ CustomField = Annotated[
 ]
 
 
-class CustomFieldMove(MainCRUDModel):
+class CustomFieldMove(BaseModel):
     project_id: str
     taskGiverId: str
     taskReceiverId: str
     customField: CustomField
 
 
-class TaskMove(MainCRUDModel):
+class TaskMove(BaseModel):
     project_id: str
     boardGiverId: str
     boardReceiverId: str
     taskId: str
 
 
-class TaskEdit(EditModel, MainCRUDModel):
+class TaskEdit(EditModel):
     fields_to_check: ClassVar[list[str]] = [
         "name",
         "description",
@@ -92,7 +88,7 @@ class TaskEdit(EditModel, MainCRUDModel):
     custom_fields: Optional[List[CustomField]] = None
 
 
-class TaskTemplate(MainCRUDModel):
+class TaskTemplate(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
     board_id: str
@@ -107,14 +103,14 @@ class TaskTemplate(MainCRUDModel):
     custom_fields: List[CustomField]
 
 
-class BoardMove(MainCRUDModel):
+class BoardMove(BaseModel):
     project_id: str
     pageGiverId: str
     pageReceiverId: str
     boardId: str
 
 
-class BoardEdit(EditModel, MainCRUDModel):
+class BoardEdit(EditModel):
     fields_to_check: ClassVar[list[str]] = [
         "name",
         "description",
@@ -129,7 +125,7 @@ class BoardEdit(EditModel, MainCRUDModel):
     tasks: Optional[List[Union[str, TaskTemplate]]] = None
 
 
-class BoardTemplate(MainCRUDModel):
+class BoardTemplate(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
     page_id: str
@@ -138,7 +134,7 @@ class BoardTemplate(MainCRUDModel):
     tasks: List[Union[str, TaskTemplate]]
 
 
-class PageEdit(EditModel, MainCRUDModel):
+class PageEdit(EditModel):
     fields_to_check: ClassVar[list[str]] = ["name", "description", "boards", "id"]
 
     id: Optional[str] = Field(None, alias="_id")
@@ -147,7 +143,7 @@ class PageEdit(EditModel, MainCRUDModel):
     boards: Optional[List[Union[str, BoardTemplate]]] = None
 
 
-class PageTemplate(MainCRUDModel):
+class PageTemplate(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     project_id: str
     name: str
@@ -155,7 +151,7 @@ class PageTemplate(MainCRUDModel):
     boards: List[Union[str, BoardTemplate]]
 
 
-class ProjectEdit(EditModel, MainCRUDModel):
+class ProjectEdit(EditModel):
     fields_to_check: ClassVar[list[str]] = [
         "name",
         "description",
@@ -173,7 +169,7 @@ class ProjectEdit(EditModel, MainCRUDModel):
     pages: Optional[List[Union[str, PageTemplate]]] = None
 
 
-class ProjectTemplate(MainCRUDModel):
+class ProjectTemplate(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     admin_id: int
     name: str

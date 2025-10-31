@@ -546,7 +546,6 @@ class Page(BaseEntity):
 @fields(
     all_fields={
         "_id": str,
-        "admin_id": int,
         "name": str,
         "description": str,
         "collaborators": list[Collaborator],
@@ -587,8 +586,6 @@ class Project(BaseEntity):
                 await page.write_to_db()
 
     async def _parse_hook(self, template: dict):
-        self.admin_id: int = template["admin_id"]
-
         self.collaborators: list[Collaborator] = template["collaborators"]
         self.price: int = template["price"] if template["price"] is not None else -1
 

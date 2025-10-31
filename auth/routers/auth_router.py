@@ -10,7 +10,7 @@ from utils.pwd_crypt import hash_password, verify_password
 
 settings = get_settings()
 
-auth_router = APIRouter(prefix="/auth", tags=["auth"])
+auth_router = APIRouter(tags=["auth"])
 
 oauth = OAuth()
 
