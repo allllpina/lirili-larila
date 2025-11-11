@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 from config import get_settings
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 settings = get_settings()
@@ -33,8 +34,21 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+class ToDictMixin:
+    def to_dict(self, columns: list[str] | None = None) -> dict:
+        """Повертає словник з вибраними або всіма колонками."""
+        mapper = inspect(self).mapper
+        data = {}
+
+        for c in mapper.column_attrs:
+            key = c.key
+            if columns is None or key in columns:
+                data[key] = getattr(self, key)
+        return data
+
+
 # ORM-модель
-class User(Base):
+class User(Base, ToDictMixin):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
