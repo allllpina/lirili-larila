@@ -10,7 +10,7 @@ from utils.check_access import check_if_accessable, get_user_data
 from utils.get_db import get_db
 from utils.websocket_hub import WSHub
 
-app = FastAPI(title="Tasks service", version="1.0.0", root_path="/tasks")
+app = FastAPI(title="Tasks service", version="1.0.0", root_path="/lirililarila")
 
 settings = get_settings()
 app.state.SOCKETS = WSHub()

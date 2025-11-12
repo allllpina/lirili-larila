@@ -120,6 +120,7 @@ async def edit_project(
 
         data = project_template.model_dump(exclude_none=True, by_alias=True)
         project_id = data.pop("_id", None)
+        _ = data.pop("project_id", None)
         project = await Project.from_db(id=project_id, db=db)
 
         await project.update(**data)

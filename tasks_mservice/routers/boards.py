@@ -103,12 +103,13 @@ async def edit_board(
 
         data = board_template.model_dump(exclude_none=True, by_alias=True)
         board_id = data.pop("_id", None)
+        project_id = data.pop("project_id")
         board = await Board.from_db(id=board_id, db=db)
 
         await board.update(**data)
 
         await request.app.state.SOCKETS.broadcast(
-            room=board.project_id,
+            room=project_id,
             message={"category": "boards", "content": data, "operation": "edit"},
         )
 

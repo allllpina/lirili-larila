@@ -101,11 +101,12 @@ async def edit_page(
 
         data = page_template.model_dump(exclude_none=True, by_alias=True)
         page_id = data.pop("_id", None)
+        project_id = data.pop("project_id")
         page = await Page.from_db(id=page_id, db=db)
 
         await page.update(**data)
         await request.app.state.SOCKETS.broadcast(
-            room=page.project_id,
+            room=project_id,
             message={"category": "pages", "content": data, "operation": "edit"},
         )
 

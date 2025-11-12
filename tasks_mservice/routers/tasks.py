@@ -101,12 +101,13 @@ async def edit_task(
 
         data = task_template.model_dump(exclude_none=True, by_alias=True)
         task_id = data.pop("_id")
+        project_id = data.pop("project_id")
         task = await Task.from_db(id=task_id, db=db)
 
         await task.update(**data)
 
         await request.app.state.SOCKETS.broadcast(
-            room=task.project_id,
+            room=project_id,
             message={"category": "tasks", "content": data, "operation": "edit"},
         )
 
@@ -119,7 +120,7 @@ async def edit_task(
 @tasks_router.delete("/delete_task", tags=["delete"])
 async def delete_task(
     task_id: str,
-    project_id,
+    project_id: str,
     db: Database = Depends(get_db),
     user_data=Depends(get_user_data),
     request: Request = None,
