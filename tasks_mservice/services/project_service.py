@@ -1,8 +1,6 @@
 import uuid
 
-from db.models import ProjectDocument
-from db.repositories import ProjectRepository
-from models.entity_schemas import (
+from api.schemas import (
     FullBoard,
     FullPage,
     FullProject,
@@ -10,40 +8,81 @@ from models.entity_schemas import (
     ProjectPriceReport,
     ProjectUpdate,
 )
+from db.models import ProjectDocument
+from db.repositories import (
+    BoardRepository,
+    PageRepository,
+    ProjectRepository,
+    TaskRepository,
+)
+from pymongo.asynchronous.database import AsyncDatabase
+from utils.check_access import check_if_accessable
 
-from .exceptions import BusinessLogicError, NotFoundError
+from .exceptions import BusinessLogicError, NotFoundError, PermissionDeniedError
 from .page_service import PageService
-from .task_service import TaskService
 
 
 class ProjectService:
     def __init__(
         self,
         project_repo: ProjectRepository,
-        page_service: PageService,  # Ін'єктуємо PageService
-        task_service: TaskService,  # Ін'єктуємо TaskService
+        page_repo: PageRepository,  # Потрібні для LLM dump
+        board_repo: BoardRepository,  # Потрібні для LLM dump
+        task_repo: TaskRepository,  # Потрібні для LLM dump
+        db: AsyncDatabase,
+        page_service: PageService,
     ):
         self.project_repo = project_repo
+        self.page_repo = page_repo
+        self.board_repo = board_repo
+        self.task_repo = task_repo
+        self.db = db
         self.page_service = page_service
-        self.task_service = task_service
 
-        # Для звітів нам все ще потрібні "сирі" репозиторії
-        # Це місце можна оптимізувати, але для початку так
-        self.page_repo = page_service.page_repo
-        self.board_repo = page_service.board_service.board_repo
-        self.task_repo = page_service.board_service.task_service.task_repo
+    async def _ensure_access(self, user_id: int, project_id: str):
+        if not await check_if_accessable(user_id, project_id, self.db):
+            raise PermissionDeniedError(f"Access denied to project {project_id}")
 
-    async def create_project(self, project_data: ProjectCreate) -> ProjectDocument:
-        """(C) Створює проект (вже було)"""
+    async def create_project(
+        self, project_data: ProjectCreate, user_id: int
+    ) -> ProjectDocument:
+        """(C) Створює проект"""
         doc_data = project_data.model_dump()
         doc_data["_id"] = str(uuid.uuid4())
         doc_data["page_ids"] = []
-        return await self.project_repo.create(doc_data)
+        new_project = await self.project_repo.create(doc_data)
+
+        users_collection = self.db.get_collection("users")
+
+        allowed_users = [user_id] + [c.usr_id for c in new_project.collaborators]
+
+        users_data = {
+            "_id": new_project.id,
+            "name": new_project.name,
+            "users": allowed_users,
+        }
+
+        await users_collection.insert_one(users_data)
+
+        return new_project
+
+    async def get_project(self, project_id: str, user_id: int) -> ProjectDocument:
+        """(R) Отримати проект."""
+        # Спочатку перевірка доступу, бо ми не знаємо чи існує проект,
+        # але check_if_accessable перевіряє права по 'users' колекції
+        await self._ensure_access(user_id, project_id)
+
+        project = await self.project_repo.get_by_id(project_id)
+        if not project:
+            raise NotFoundError(f"Project {project_id} not found")
+        return project
 
     async def update_project(
-        self, project_id: str, update_data: ProjectUpdate
+        self, project_id: str, update_data: ProjectUpdate, user_id: int
     ) -> ProjectDocument:
         """(U) Оновлює проект"""
+        await self._ensure_access(user_id, project_id)
+
         update_dict = update_data.model_dump(exclude_unset=True)
         if not update_dict:
             raise BusinessLogicError("No fields to update")
@@ -54,9 +93,9 @@ class ProjectService:
 
         return await self.project_repo.get_by_id(project_id)
 
-    async def delete_project(self, project_id: str) -> dict:
+    async def delete_project(self, project_id: str, user_id: int) -> dict:
         """(D) Каскадно видаляє проект -> сторінки -> дошки -> таски"""
-        project = await self.project_repo.get_by_id(project_id)
+        project = await self.get_project(project_id, user_id)
         if not project:
             raise NotFoundError(f"Project {project_id} not found")
 
@@ -67,7 +106,7 @@ class ProjectService:
         # 1. Ієрархічно викликаємо PageService
         for page_id in project.page_ids:
             try:
-                report = await self.page_service.delete_page(page_id)
+                report = await self.page_service.delete_page(page_id, user_id)
                 deleted_pages += 1
                 deleted_boards += report.get("deleted_boards", 0)
                 deleted_tasks += report.get("deleted_tasks", 0)
@@ -84,12 +123,14 @@ class ProjectService:
             "deleted_tasks": deleted_tasks,
         }
 
-    async def get_full_project_for_llm(self, project_id: str) -> FullProject:
+    async def get_full_project_for_llm(
+        self, project_id: str, user_id: int
+    ) -> FullProject:
         """
         Збирає (гідратує) повний JSON проекту для LLM.
         """
 
-        project = await self.project_repo.get_by_id(project_id)
+        project = await self.get_project(project_id, user_id)
         if not project:
             raise NotFoundError(f"Project {project_id} not found")
 
@@ -106,12 +147,14 @@ class ProjectService:
 
         return FullProject(**project.model_dump(), pages=full_pages)
 
-    async def get_project_price_report(self, project_id: str) -> ProjectPriceReport:
+    async def get_project_price_report(
+        self, project_id: str, user_id: int
+    ) -> ProjectPriceReport:
         """
         Розраховує фінансовий звіт для проекту,
         делегуючи роботу сервісу сторінок.
         """
-        project = await self.project_repo.get_by_id(project_id)
+        project = await self.get_project(project_id, user_id)
         if not project:
             raise NotFoundError(f"Project {project_id} not found")
 
@@ -120,7 +163,9 @@ class ProjectService:
 
         for page_id in project.page_ids:
             try:
-                page_report = await self.page_service.get_page_price_report(page_id)
+                page_report = await self.page_service.get_page_price_report(
+                    page_id, user_id
+                )
                 pages_reports.append(page_report)
                 project_total_cost += page_report.overall
 

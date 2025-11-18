@@ -9,22 +9,25 @@ auth_scheme = HTTPBearer()
 settings = get_settings()
 
 
-def get_user_data(
-    credentials: HTTPAuthorizationCredentials | str = Depends(auth_scheme),
-):
-    """
-    Function that gets user info from token Bearer in HTTP Authorization header
-    """
-    if isinstance(credentials, str):
-        token = credentials
-    else:
-        token = credentials.credentials
-
+def decode_jwt_token(token: str) -> dict:
+    """Decodes JWT"""
     try:
         payload = jwt.decode(
             token, settings.jwt_key.get_secret_value(), algorithms=[settings.algorithm]
         )
         return payload
+    except JWTError:
+        raise ValueError("Invalid Token")
+
+
+def get_user_data(
+    credentials: HTTPAuthorizationCredentials = Depends(auth_scheme),
+):
+    """
+    Function that gets user info from token Bearer in HTTP Authorization header
+    """
+    try:
+        return decode_jwt_token(credentials.credentials)
     except JWTError:
         raise HTTPException(
             status_code=401,

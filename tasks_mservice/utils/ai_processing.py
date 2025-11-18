@@ -1,5 +1,6 @@
 from typing import List, Literal
 
+from api.schemas import FullProject
 from config import get_settings
 from google import genai
 from pydantic import BaseModel
@@ -19,7 +20,7 @@ class ExpectedResponse(BaseModel):
 
 class GoogleAIProcessor:
     @staticmethod
-    async def get_priority_and_recomendations(content: dict):
+    async def get_priority_and_recomendations(content: FullProject) -> ExpectedResponse:
         client = genai.Client(api_key=settings.google_ai_api_key.get_secret_value())
 
         prompt = f"""

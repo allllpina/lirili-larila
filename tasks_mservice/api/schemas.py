@@ -119,3 +119,9 @@ class ProjectUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     collaborators: Optional[List[Collaborator]] = None
+
+
+class TaskMoveRequest(BaseModel):
+    taskId: str
+    boardGiverId: str
+    boardReceiverId: str

@@ -1,16 +1,18 @@
 import uuid
 
-from db.models import BoardDocument, TaskDocument
-from db.repositories import BoardRepository, PageRepository, TaskRepository
-from models.entity_schemas import (
+from api.schemas import (
     BoardCreate,
     BoardPriceInfo,
     BoardUpdate,
     TaskCreate,
     TaskPriceInfo,
 )
+from db.models import BoardDocument, TaskDocument
+from db.repositories import BoardRepository, PageRepository, TaskRepository
+from pymongo.asynchronous.database import AsyncDatabase
+from utils.check_access import check_if_accessable
 
-from .exceptions import BusinessLogicError, NotFoundError
+from .exceptions import BusinessLogicError, NotFoundError, PermissionDeniedError
 from .task_service import TaskService
 
 
@@ -21,19 +23,27 @@ class BoardService:
         board_repo: BoardRepository,
         page_repo: PageRepository,
         task_service: TaskService,
+        db: AsyncDatabase,
     ):
         self.task_repo = task_repo
         self.board_repo = board_repo
         self.page_repo = page_repo
         self.task_service = task_service
+        self.db = db
+
+    async def _ensure_access(self, user_id: int, project_id: str):
+        if not await check_if_accessable(user_id, project_id, self.db):
+            raise PermissionDeniedError(f"Access denied to project {project_id}")
 
     async def create_board(
-        self, board_data: BoardCreate, page_id: str
+        self, board_data: BoardCreate, page_id: str, user_id: int
     ) -> BoardDocument:
         """(C) Створює нову дошку і прив'язує до сторінки"""
         page = await self.page_repo.get_by_id(page_id)
         if not page:
             raise NotFoundError(f"Page {page_id} not found")
+
+        await self._ensure_access(user_id, page.project_id)
 
         board_dict = board_data.model_dump()
         board_dict["_id"] = str(uuid.uuid4())
@@ -47,9 +57,18 @@ class BoardService:
 
         return new_board
 
-    async def delete_board(self, board_id: str) -> dict:
-        """(D) Каскадно видаляє дошку і всі її таски"""
+    async def get_board(self, board_id: str, user_id: int) -> BoardDocument:
+        """(R) Отримати дошку."""
         board = await self.board_repo.get_by_id(board_id)
+        if not board:
+            raise NotFoundError(f"Board {board_id} not found")
+
+        await self._ensure_access(user_id, board.project_id)
+        return board
+
+    async def delete_board(self, board_id: str, user_id: int) -> dict:
+        """(D) Каскадно видаляє дошку і всі її таски"""
+        board = await self.get_board(board_id, user_id)
         if not board:
             raise NotFoundError(f"Board {board_id} not found")
 
@@ -62,9 +81,11 @@ class BoardService:
         return {"deleted_board": board_id, "deleted_tasks": deleted_tasks_count}
 
     async def update_board(
-        self, board_id: str, update_data: BoardUpdate
+        self, board_id: str, update_data: BoardUpdate, user_id: int
     ) -> BoardDocument:
         """(U) Оновлює дошку"""
+        _ = await self.get_board(board_id, user_id)
+
         update_dict = update_data.model_dump(exclude_unset=True)
         if not update_dict:
             raise BusinessLogicError("No fields to update")
@@ -77,10 +98,10 @@ class BoardService:
         return await self.board_repo.get_by_id(board_id)
 
     async def create_task_in_board(
-        self, task_data: TaskCreate, board_id: str
+        self, task_data: TaskCreate, board_id: str, user_id: int
     ) -> TaskDocument:
         """(C) Створює таск в дошці"""
-        board = await self.board_repo.get_by_id(board_id)
+        board = await self.get_board(board_id, user_id)
         if not board:
             raise NotFoundError(f"Board {board_id} not found")
 
@@ -94,9 +115,9 @@ class BoardService:
         await self.board_repo.add_task_id(board.id, new_task.id)
         return new_task
 
-    async def delete_task(self, task_id: str) -> dict:
+    async def delete_task(self, task_id: str, user_id: int) -> dict:
         """(D) Видаляє таск і відв'язує його"""
-        task = await self.task_repo.get_by_id(task_id)
+        task = await self.task_service.get_task(task_id, user_id)
         if not task:
             raise NotFoundError(f"Task {task_id} not found")
 
@@ -106,15 +127,16 @@ class BoardService:
         return {"deleted_task": task.id}
 
     async def move_task_between_boards(
-        self, task_id, giver_board_id, receiver_board_id: str
+        self, task_id, giver_board_id, receiver_board_id: str, user_id: str
     ) -> dict:
         """(U) Переміщує таск"""
-        task = await self.task_repo.get_by_id(task_id)
+        task = await self.task_service.get_task(task_id, user_id)
         if not task or task.board_id != giver_board_id:
             raise NotFoundError(f"Task {task_id} not found on board {giver_board_id}")
 
-        if not await self.board_repo.get_by_id(receiver_board_id):
-            raise NotFoundError(f"Receiver board {receiver_board_id} not found")
+        receiver_board = await self.get_board(receiver_board_id, user_id)
+        if receiver_board.project_id != task.project_id:
+            raise BusinessLogicError("Cannot move task between different projects")
 
         remove_ok = await self.board_repo.remove_task_id(giver_board_id, task_id)
         if not remove_ok:
@@ -135,11 +157,11 @@ class BoardService:
 
         return {"status": "success", "task_id": task_id, "new_board": receiver_board_id}
 
-    async def get_board_price_report(self, board_id: str):
+    async def get_board_price_report(self, board_id: str, user_id: int):
         """
         Розраховує фінансовий звіт для ОДНІЄЇ дошки.
         """
-        board = await self.board_repo.get_by_id(board_id)
+        board = await self.get_board(board_id, user_id)
         if not board:
             raise NotFoundError(f"Board {board_id} not found")
 
@@ -163,9 +185,9 @@ class BoardService:
             )
             board_total_cost += task_cost
 
-            return BoardPriceInfo(
-                board_id=board.id,
-                name=board.name,
-                overall=board_total_cost,
-                per_task=tasks_reports,
-            )
+        return BoardPriceInfo(
+            board_id=board.id,
+            name=board.name,
+            overall=board_total_cost,
+            per_task=tasks_reports,
+        )

@@ -1,40 +1,18 @@
-from typing import Annotated, Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal
 
 from fastapi import WebSocket
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 """
 Models for stability and security
 """
 
 
-class PageCreate(BaseModel):
-    operation: Literal["create"]
-    category: str
+class WSOperation(BaseModel):
+    operation: Literal["create", "edit", "delete", "move"]
+    category: Literal["projects", "pages", "boards", "tasks"]
     content: dict
 
-
-class PageEdit(BaseModel):
-    operation: Literal["edit"]
-    category: str
-    content: dict
-
-
-class PageMove(BaseModel):
-    operation: Literal["move"]
-    category: str
-    content: dict
-
-
-class PageDelete(BaseModel):
-    operation: Literal["delete"]
-    category: str
-    content: Optional[dict] = None
-
-
-PageOperation = Annotated[
-    Union[PageMove, PageCreate, PageEdit, PageDelete], Field(discriminator="operation")
-]
 
 """
 Websockets Hub class for websockets rooms realisation
@@ -66,7 +44,7 @@ class WSHub:
             if not self.active_connections[room]:
                 self.active_connections.pop(room)
 
-    async def broadcast(self, room: str, message: PageOperation):
+    async def broadcast(self, room: str, message: WSOperation):
         """
         Method that sends message to all the connections in room
         """
