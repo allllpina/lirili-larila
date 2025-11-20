@@ -1,0 +1,36 @@
+.
+├── api
+│   ├── dependencies.py
+│   ├── __init__.py
+│   ├── routers
+│   │   ├── boards.py
+│   │   ├── __init__.py
+│   │   ├── pages.py
+│   │   ├── projects.py
+│   │   └── tasks.py
+│   └── schemas.py
+├── config.py
+├── db
+│   ├── database.py
+│   ├── __init__.py
+│   ├── models.py
+│   └── repositories.py
+├── Dockerfile
+├── main.py
+├── requirements.txt
+├── services
+│   ├── board_service.py
+│   ├── exceptions.py
+│   ├── __init__.py
+│   ├── page_service.py
+│   ├── project_service.py
+│   └── task_service.py
+├── tree.txt
+└── utils
+    ├── ai_processing.py
+    ├── check_access.py
+    ├── get_db.py
+    ├── __init__.py
+    └── websocket_hub.py
+
+6 directories, 28 files

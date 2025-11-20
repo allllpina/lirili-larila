@@ -17,7 +17,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Tasks Service (Clean Architecture)", version="2.0.0", lifespan=lifespan
+    title="Tasks Service (Clean Architecture)",
+    version="2.0.0",
+    lifespan=lifespan,
+    root_path="/lirililarila",
 )
 
 app.include_router(projects.router)
