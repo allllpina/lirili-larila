@@ -23,7 +23,7 @@ class TaskRepository:
 
     async def delete(self, task_id: str) -> bool:
         result: DeleteResult = await self.collection.delete_one({"_id": task_id})
-        return result.deleted_count > 1
+        return result.deleted_count > 0
 
     async def update(self, doc_id: str, update_data: dict) -> bool:
         """
@@ -40,14 +40,14 @@ class TaskRepository:
         return [TaskDocument.model_validate(doc) async for doc in cursor]
 
     async def delete_by_board_id(self, board_id: str) -> int:
-        result: DeleteResult = self.collection.delete_many({"board_id": board_id})
+        result: DeleteResult = await self.collection.delete_many({"board_id": board_id})
         return result.deleted_count
 
     async def update_board_id(self, task_id: str, new_board_id: str) -> bool:
         result: UpdateResult = await self.collection.update_one(
             {"_id": task_id}, {"$set": {"board_id": new_board_id}}
         )
-        return result.modified_count > 1
+        return result.modified_count > 0
 
 
 class BoardRepository:
@@ -65,8 +65,8 @@ class BoardRepository:
         return BoardDocument.model_validate(board_data)
 
     async def delete(self, board_id: str) -> bool:
-        result: DeleteResult = self.collection.delete_one({"_id": board_id})
-        return result.deleted_count > 1
+        result: DeleteResult = await self.collection.delete_one({"_id": board_id})
+        return result.deleted_count > 0
 
     async def update(self, doc_id: str, update_data: dict) -> bool:
         """
@@ -83,7 +83,7 @@ class BoardRepository:
         return [BoardDocument.model_validate(doc) async for doc in cursor]
 
     async def delete_by_page_id(self, page_id: str) -> int:
-        result: DeleteResult = self.collection.delete_many({"page_id": page_id})
+        result: DeleteResult = await self.collection.delete_many({"page_id": page_id})
         return result.deleted_count
 
     async def add_task_id(self, board_id: str, task_id: str):
@@ -115,7 +115,7 @@ class PageRepository:
 
     async def delete(self, page_id: str) -> bool:
         result: DeleteResult = await self.collection.delete_one({"_id": page_id})
-        return result.deleted_count > 1
+        return result.deleted_count > 0
 
     async def update(self, doc_id: str, update_data: dict) -> bool:
         """
@@ -132,18 +132,20 @@ class PageRepository:
         return [PageDocument.model_validate(doc) async for doc in cursor]
 
     async def delete_by_project_id(self, project_id: str) -> int:
-        result: DeleteResult = self.collection.delete_many({"project_id": project_id})
+        result: DeleteResult = await self.collection.delete_many(
+            {"project_id": project_id}
+        )
         return result.deleted_count
 
-    async def add_board_id(self, project_id: str, board_id: str) -> bool:
+    async def add_board_id(self, page_id: str, board_id: str) -> bool:
         result: UpdateResult = await self.collection.update_one(
-            {"_id": project_id}, {"$push": {"board_ids": board_id}}
+            {"_id": page_id}, {"$push": {"board_ids": board_id}}
         )
         return result.modified_count > 0
 
-    async def remove_board_id(self, project_id: str, board_id: str) -> bool:
+    async def remove_board_id(self, page_id: str, board_id: str) -> bool:
         result: UpdateResult = await self.collection.update_one(
-            {"_id": project_id}, {"$pull": {"board_ids": board_id}}
+            {"_id": page_id}, {"$pull": {"board_ids": board_id}}
         )
         return result.modified_count > 0
 

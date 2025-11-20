@@ -87,7 +87,7 @@ async def move_task(
         # Отримуємо таск для project_id
         task_doc = await task_service.get_task(move_data.taskId, user_id)
 
-        await service.move_task(
+        await service.move_task_between_boards(
             task_id=move_data.taskId,
             giver_board_id=move_data.boardGiverId,
             receiver_board_id=move_data.boardReceiverId,
