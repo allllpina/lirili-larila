@@ -1,16 +1,20 @@
-from api.dependencies import get_project_service
+from typing import List
+
+from api.dependencies import get_project_service, get_task_service
 from api.schemas import (
     FullProject,
     ProjectCreate,
     ProjectDocument,
     ProjectPriceReport,
     ProjectUpdate,
+    TaskUpdate,
 )
 from db.database import get_database
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pymongo.asynchronous.database import AsyncDatabase
 from services.exceptions import NotFoundError, PermissionDeniedError
 from services.project_service import ProjectService
+from services.task_service import TaskService
 from utils.ai_processing import ExpectedResponse as AIResponse
 from utils.ai_processing import GoogleAIProcessor as AI
 from utils.check_access import check_if_accessable, decode_jwt_token, get_user_data
@@ -41,6 +45,21 @@ async def get_project(
         raise HTTPException(
             status_code=404 if isinstance(e, NotFoundError) else 403, detail=str(e)
         )
+
+
+@router.get("/my_projects", response_model=List[ProjectDocument])
+async def get_my_projects(
+    user_data: dict = Depends(get_user_data),
+    service: ProjectService = Depends(get_project_service),
+):
+    """
+    Отримує список проектів, де користувач є власником або учасником.
+    """
+    try:
+        user_id = user_data["user_data"]["id"]
+        return await service.get_user_projects(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/edit_project", response_model=ProjectDocument)
@@ -88,13 +107,30 @@ async def get_ai_evaluation(
     project_id: str,
     user_data: dict = Depends(get_user_data),
     service: ProjectService = Depends(get_project_service),
+    task_service: TaskService = Depends(get_task_service),
 ):
     try:
         user_id = user_data["user_data"]["id"]
         full_project: FullProject = await service.get_full_project_for_llm(
             project_id, user_id
         )
-        return await AI.get_priority_and_recomendations(full_project)
+        ai_result = await AI.get_priority_and_recomendations(full_project)
+
+        if ai_result.prioritized_tasks:
+
+            for item in ai_result.prioritized_tasks:
+                try:
+                    update_data = TaskUpdate(priority=item.priority)
+
+                    await task_service.update_task(
+                        task_id=item.task_id, update_data=update_data, user_id=user_id
+                    )
+                except Exception:
+                    # Якщо один таск не оновився (наприклад, видалений), не ламаємо весь запит
+                    continue
+
+        return ai_result
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

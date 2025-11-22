@@ -127,6 +127,9 @@ class PageService:
                 # Дошка не знайдена, пропускаємо
                 pass
 
+        if page.cost != page_total_cost:
+            await self.page_repo.update(page.id, {"cost": page_total_cost})
+
         return PagePriceInfo(
             page_id=page.id,
             name=page.name,

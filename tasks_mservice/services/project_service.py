@@ -1,4 +1,5 @@
 import uuid
+from typing import List
 
 from api.schemas import (
     FullBoard,
@@ -76,6 +77,10 @@ class ProjectService:
         if not project:
             raise NotFoundError(f"Project {project_id} not found")
         return project
+
+    async def get_user_projects(self, user_id: int) -> List[ProjectDocument]:
+        """(R) Отримати список усіх проектів користувача."""
+        return await self.project_repo.get_projects_by_user(user_id)
 
     async def update_project(
         self, project_id: str, update_data: ProjectUpdate, user_id: int
@@ -171,6 +176,9 @@ class ProjectService:
 
             except NotFoundError:
                 pass
+
+        if project.cost != project_total_cost:
+            await self.project_repo.update(project.id, {"cost": project_total_cost})
 
         return ProjectPriceReport(
             project_id=project.id,

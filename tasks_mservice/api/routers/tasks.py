@@ -1,11 +1,5 @@
 from api.dependencies import get_board_service, get_task_service
-from api.schemas import (
-    TaskCreate,
-    TaskDocument,
-    TaskMoveRequest,
-    TaskResponse,
-    TaskUpdate,
-)
+from api.schemas import TaskCreate, TaskDocument, TaskMoveRequest, TaskUpdate
 from fastapi import APIRouter, Depends, HTTPException, Request
 from services.board_service import BoardService
 from services.exceptions import NotFoundError, PermissionDeniedError
@@ -111,7 +105,7 @@ async def move_task(
 # --- ОПЕРАЦІЇ ЧЕРЕЗ TASK SERVICE (Зміна контенту) ---
 
 
-@router.get("/get_task/{task_id}", response_model=TaskResponse)
+@router.get("/get_task/{task_id}", response_model=TaskDocument)
 async def get_task(
     task_id: str,
     user_data: dict = Depends(get_user_data),

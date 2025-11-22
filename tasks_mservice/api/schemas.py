@@ -43,10 +43,6 @@ class ProjectCreate(BaseModel):
     collaborators: List[Collaborator] = []
 
 
-class TaskResponse(TaskDocument):
-    price: Optional[float] = None
-
-
 class FullBoard(BoardDocument):
     tasks: List[TaskDocument] = []
 
@@ -96,7 +92,7 @@ class ProjectPriceReport(BaseModel):
 
 class TaskUpdate(BaseModel):
     name: Optional[str] = None
-    description: Optional[str]
+    description: Optional[str] = None
     priority: Optional[Literal["low", "medium", "high", "None"]] = None
     status: Optional[Literal["complete", "in progress", "not done"]] = None
     tags: Optional[List[str]] = None

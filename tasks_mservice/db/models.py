@@ -54,6 +54,8 @@ class TaskDocument(BaseModel):
     custom_fields: List[CustomField]
     time_to_complete: Optional[float] = None
 
+    cost: float = 0.0
+
     class Config:
         populate_by_name = True
 
@@ -66,6 +68,7 @@ class BoardDocument(BaseModel):
     page_id: str
     name: str
     description: str
+    cost: float = 0.0
     task_ids: List[str] = []
 
     class Config:
@@ -79,6 +82,7 @@ class PageDocument(BaseModel):
     project_id: str
     name: str
     description: str
+    cost: float = 0.0
     board_ids: List[str] = []
 
     class Config:
@@ -93,6 +97,7 @@ class ProjectDocument(BaseModel):
     name: str
     description: str
     collaborators: List[Collaborator]
+    cost: float = 0.0
 
     page_ids: List[str] = []
 

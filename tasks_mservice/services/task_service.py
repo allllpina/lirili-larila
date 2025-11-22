@@ -56,11 +56,13 @@ class TaskService:
 
     # (D) Delete для таска буде в BoardService (бо таск не може існувати без дошки)
 
-    def calculate_task_price_details(
+    async def calculate_task_price_details(
         self, task: TaskDocument
     ) -> Tuple[float, List[CollaboratorCostInfo]]:
         """Обчислює ціну таска (для звітів)"""
         if task.status != "complete" or task.time_to_complete is None:
+            if task.cost != 0.0:
+                await self.task_repo.update(task.id, {"cost": 0.0})
             return (0.0, [])
 
         total_cost = 0.0
@@ -78,5 +80,8 @@ class TaskService:
                     total_pay=pay,
                 )
             )
+
+        if task.cost != total_cost:
+            await self.task_repo.update(task.id, {"cost": total_cost})
 
         return (total_cost, cost_breakdown_list)

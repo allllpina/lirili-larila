@@ -109,7 +109,7 @@ class BoardService:
         task_dict["_id"] = str(uuid.uuid4())
         task_dict["board_id"] = board.id
         task_dict["project_id"] = board.project_id
-        task_dict["time_to_compplete"] = None
+        task_dict["time_to_complete"] = None
 
         new_task = await self.task_repo.create(task_dict)
         await self.board_repo.add_task_id(board.id, new_task.id)
@@ -172,7 +172,7 @@ class BoardService:
 
         for task in tasks:
             (task_cost, cost_breakdown) = (
-                self.task_service.calculate_task_price_details(task)
+                await self.task_service.calculate_task_price_details(task)
             )
 
             tasks_reports.append(
@@ -184,6 +184,9 @@ class BoardService:
                 )
             )
             board_total_cost += task_cost
+
+        if board.cost != board_total_cost:
+            await self.board_repo.update(board.id, {"cost": board_total_cost})
 
         return BoardPriceInfo(
             board_id=board.id,

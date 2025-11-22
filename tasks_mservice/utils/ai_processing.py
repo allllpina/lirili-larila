@@ -63,4 +63,7 @@ class GoogleAIProcessor:
             },
         )
 
-        return response
+        if response.parsed:
+            return response.parsed
+
+        raise ValueError("AI failed to return structured data")

@@ -128,7 +128,7 @@ class PageRepository:
         return result.modified_count > 0
 
     async def get_by_project_id(self, project_id: str) -> List[PageDocument]:
-        cursor = self.collection.find({"_id": project_id})
+        cursor = self.collection.find({"project_id": project_id})
         return [PageDocument.model_validate(doc) async for doc in cursor]
 
     async def delete_by_project_id(self, project_id: str) -> int:
@@ -193,3 +193,11 @@ class ProjectRepository:
             {"_id": project_id}, {"$pull": {"page_ids": page_id}}
         )
         return result.modified_count > 0
+
+    async def get_projects_by_user(self, user_id: int) -> List[ProjectDocument]:
+        """
+        Знаходить усі проекти, де користувач є адміном АБО колаборатором.
+        """
+        query = {"$or": [{"admin_id": user_id}, {"collaborators.usr_id": user_id}]}
+        cursor = self.collection.find(query)
+        return [ProjectDocument.model_validate(doc) async for doc in cursor]
