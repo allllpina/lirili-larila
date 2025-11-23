@@ -52,7 +52,7 @@ async def delete_task(
         project_id = task_doc.project_id
 
         # Видаляємо через BoardService
-        result = await service.delete_task_from_board(task_id, user_id)
+        result = await service.delete_task(task_id, user_id)
 
         await request.app.state.SOCKETS.broadcast(
             room=project_id,

@@ -62,7 +62,7 @@ async def delete_page(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/get_page/{page_id}")
+@router.get("/get_page/{page_id}", response_model=PageDocument)
 async def get_page(
     page_id: str,
     user_data: dict = Depends(get_user_data),
