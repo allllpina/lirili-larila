@@ -137,3 +137,44 @@ dmypy.json
 
 example.txt
 google-test.py
+
+# ==========================
+# Frontend (Node.js / Vite)
+# ==========================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================
+# IDE & OS Files
+# ==========================
+# JetBrains (PyCharm, WebStorm)
+.idea/
+# macOS
+.DS_Store
+# Windows
+Thumbs.db
+Desktop.ini
+
+# ==========================
+# Docker
+# ==========================
+docker-compose.override.yml
+
+# ==========================
+# Project Specific
+# ==========================
+# Якщо ти генеруєш дерево файлів скриптом
+tree.txt
+# Логи бази даних (якщо раптом вирішиш монтувати їх локально)
+pg_data/
+mongo_data/

@@ -153,7 +153,7 @@ async def websocket_endpoint(
         await websocket.close(code=1008, reason="Invalid Token")
         return
 
-    is_accessible = await users_repo.check_access(user_id, project_id)
+    is_accessible = await users_repo.check_access(project_id, user_id)
     if not is_accessible:
         await websocket.close(code=1008, reason="Access Denied")
         return
