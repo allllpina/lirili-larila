@@ -1,6 +1,6 @@
 from typing import List
 
-from api.dependencies import get_project_service, get_task_service
+from api.dependencies import get_project_service, get_task_service, get_users_repo
 from api.schemas import (
     FullProject,
     ProjectCreate,
@@ -9,15 +9,14 @@ from api.schemas import (
     ProjectUpdate,
     TaskUpdate,
 )
-from db.database import get_database
+from db.repositories import UsersRepository
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from pymongo.asynchronous.database import AsyncDatabase
 from services.exceptions import NotFoundError, PermissionDeniedError
 from services.project_service import ProjectService
 from services.task_service import TaskService
 from utils.ai_processing import ExpectedResponse as AIResponse
 from utils.ai_processing import GoogleAIProcessor as AI
-from utils.check_access import check_if_accessable, decode_jwt_token, get_user_data
+from utils.check_access import decode_jwt_token, get_user_data
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -137,7 +136,9 @@ async def get_ai_evaluation(
 
 @router.websocket("/ws/{project_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, project_id: str, db: AsyncDatabase = Depends(get_database)
+    websocket: WebSocket,
+    project_id: str,
+    users_repo: UsersRepository = Depends(get_users_repo),
 ):
     token = websocket.query_params.get("token")
 
@@ -152,7 +153,7 @@ async def websocket_endpoint(
         await websocket.close(code=1008, reason="Invalid Token")
         return
 
-    is_accessible = await check_if_accessable(user_id, project_id, db)
+    is_accessible = await users_repo.check_access(user_id, project_id)
     if not is_accessible:
         await websocket.close(code=1008, reason="Access Denied")
         return

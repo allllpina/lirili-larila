@@ -4,7 +4,13 @@ from pymongo.asynchronous.collection import AsyncCollection
 from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.results import DeleteResult, UpdateResult
 
-from .models import BoardDocument, PageDocument, ProjectDocument, TaskDocument
+from .models import (
+    BoardDocument,
+    Collaborator,
+    PageDocument,
+    ProjectDocument,
+    TaskDocument,
+)
 
 
 class TaskRepository:
@@ -201,3 +207,54 @@ class ProjectRepository:
         query = {"$or": [{"admin_id": user_id}, {"collaborators.usr_id": user_id}]}
         cursor = self.collection.find(query)
         return [ProjectDocument.model_validate(doc) async for doc in cursor]
+
+
+class UsersRepository:
+    def __init__(self, db: AsyncDatabase):
+        self.collection = db.get_collection("users")
+
+    async def set_users(
+        self,
+        project_id: str,
+        project_name: str,
+        admin_id: int,
+        collaborators: List[Collaborator],
+    ) -> bool:
+        """
+        Додає користувача в БД для сепарації проектів
+        """
+        allowed_users = [admin_id] + [c.usr_id for c in collaborators]
+
+        users_data = {
+            "_id": project_id,
+            "name": project_name,
+            "users": allowed_users,
+        }
+
+        await self.collection.insert_one(users_data)
+
+        return True
+
+    async def update_users(
+        self,
+        project_id: str,
+        admin_id: int,
+        collaborators: List[Collaborator],
+    ) -> bool:
+        """
+        Заміняє користувачів в БД для сепарації проектів
+        """
+        allowed_users = [admin_id] + [c.usr_id for c in collaborators]
+        await self.collection.update_one(
+            {"_id": project_id}, {"$set": {"users": allowed_users}}
+        )
+
+        return True
+
+    async def check_access(self, project_id: str, user_id: int) -> bool:
+        """
+        Перевіряє, чи є користувач у списку
+        """
+        record = await self.collection.find_one({"_id": project_id})
+
+        return user_id in record["users"]

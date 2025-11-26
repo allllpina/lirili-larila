@@ -15,9 +15,9 @@ from db.repositories import (
     PageRepository,
     ProjectRepository,
     TaskRepository,
+    UsersRepository,
 )
 from pymongo.asynchronous.database import AsyncDatabase
-from utils.check_access import check_if_accessable
 
 from .exceptions import BusinessLogicError, NotFoundError, PermissionDeniedError
 from .page_service import PageService
@@ -30,6 +30,7 @@ class ProjectService:
         page_repo: PageRepository,  # Потрібні для LLM dump
         board_repo: BoardRepository,  # Потрібні для LLM dump
         task_repo: TaskRepository,  # Потрібні для LLM dump
+        users_repo: UsersRepository,
         db: AsyncDatabase,
         page_service: PageService,
     ):
@@ -37,11 +38,12 @@ class ProjectService:
         self.page_repo = page_repo
         self.board_repo = board_repo
         self.task_repo = task_repo
+        self.users_repo = users_repo
         self.db = db
         self.page_service = page_service
 
     async def _ensure_access(self, user_id: int, project_id: str):
-        if not await check_if_accessable(user_id, project_id, self.db):
+        if not await self.users_repo.check_access(project_id, user_id):
             raise PermissionDeniedError(f"Access denied to project {project_id}")
 
     async def create_project(
@@ -53,24 +55,16 @@ class ProjectService:
         doc_data["page_ids"] = []
         new_project = await self.project_repo.create(doc_data)
 
-        users_collection = self.db.get_collection("users")
-
-        allowed_users = [user_id] + [c.usr_id for c in new_project.collaborators]
-
-        users_data = {
-            "_id": new_project.id,
-            "name": new_project.name,
-            "users": allowed_users,
-        }
-
-        await users_collection.insert_one(users_data)
+        await self.users_repo.set_users(
+            new_project.id, new_project.name, user_id, new_project.collaborators
+        )
 
         return new_project
 
     async def get_project(self, project_id: str, user_id: int) -> ProjectDocument:
         """(R) Отримати проект."""
         # Спочатку перевірка доступу, бо ми не знаємо чи існує проект,
-        # але check_if_accessable перевіряє права по 'users' колекції
+        # але users_repo.check_access перевіряє права по 'users' колекції
         await self._ensure_access(user_id, project_id)
 
         project = await self.project_repo.get_by_id(project_id)
@@ -96,7 +90,14 @@ class ProjectService:
         if not success:
             raise NotFoundError(f"Project {project_id} not found or no changes made")
 
-        return await self.project_repo.get_by_id(project_id)
+        ret = await self.project_repo.get_by_id(project_id)
+
+        if update_data.collaborators:
+            await self.users_repo.update_users(
+                project_id, ret.admin_id, update_data.collaborators
+            )
+
+        return ret
 
     async def delete_project(self, project_id: str, user_id: int) -> dict:
         """(D) Каскадно видаляє проект -> сторінки -> дошки -> таски"""

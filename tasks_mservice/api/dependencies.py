@@ -4,6 +4,7 @@ from db.repositories import (
     PageRepository,
     ProjectRepository,
     TaskRepository,
+    UsersRepository,
 )
 from fastapi import Depends
 from pymongo.asynchronous.database import AsyncDatabase
@@ -32,20 +33,26 @@ def get_project_repo(db: AsyncDatabase = Depends(get_database)) -> ProjectReposi
     return ProjectRepository(db)
 
 
+def get_users_repo(db: AsyncDatabase = Depends(get_database)) -> UsersRepository:
+    return UsersRepository(db)
+
+
 # --- ЗБИРАЄМО СЕРВІСИ (Ієрархічно) ---
 
 
 def get_task_service(
     task_repo: TaskRepository = Depends(get_task_repo),
+    users_repo: UsersRepository = Depends(get_users_repo),
     db: AsyncDatabase = Depends(get_database),
 ) -> TaskService:
-    return TaskService(task_repo=task_repo, db=db)
+    return TaskService(task_repo=task_repo, db=db, users_repo=users_repo)
 
 
 def get_board_service(
     task_repo: TaskRepository = Depends(get_task_repo),
     board_repo: BoardRepository = Depends(get_board_repo),
     page_repo: PageRepository = Depends(get_page_repo),
+    users_repo: UsersRepository = Depends(get_users_repo),
     task_service: TaskService = Depends(get_task_service),
     db: AsyncDatabase = Depends(get_database),
 ) -> BoardService:
@@ -55,12 +62,14 @@ def get_board_service(
         page_repo=page_repo,
         task_service=task_service,
         db=db,
+        users_repo=users_repo,
     )
 
 
 def get_page_service(
     page_repo: PageRepository = Depends(get_page_repo),
     project_repo: ProjectRepository = Depends(get_project_repo),
+    users_repo: UsersRepository = Depends(get_users_repo),
     board_service: BoardService = Depends(get_board_service),
     db: AsyncDatabase = Depends(get_database),
 ) -> PageService:
@@ -68,6 +77,7 @@ def get_page_service(
         page_repo=page_repo,
         project_repo=project_repo,
         board_service=board_service,
+        users_repo=users_repo,
         db=db,
     )
 
@@ -77,6 +87,7 @@ def get_project_service(
     page_repo: PageRepository = Depends(get_page_repo),
     board_repo: BoardRepository = Depends(get_board_repo),
     task_repo: TaskRepository = Depends(get_task_repo),
+    users_repo: UsersRepository = Depends(get_users_repo),
     page_service: PageService = Depends(get_page_service),
     db: AsyncDatabase = Depends(get_database),
 ) -> ProjectService:
@@ -87,4 +98,5 @@ def get_project_service(
         task_repo=task_repo,
         db=db,
         page_service=page_service,
+        users_repo=users_repo,
     )

@@ -2,21 +2,23 @@ from typing import List, Tuple
 
 from api.schemas import CollaboratorCostInfo, TaskUpdate
 from db.models import TaskDocument
-from db.repositories import TaskRepository
+from db.repositories import TaskRepository, UsersRepository
 from pymongo.asynchronous.database import AsyncDatabase
-from utils.check_access import check_if_accessable
 
 from .exceptions import BusinessLogicError, NotFoundError, PermissionDeniedError
 
 
 class TaskService:
-    def __init__(self, task_repo: TaskRepository, db: AsyncDatabase):
+    def __init__(
+        self, task_repo: TaskRepository, db: AsyncDatabase, users_repo: UsersRepository
+    ):
         self.task_repo = task_repo
+        self.users_repo = users_repo
         self.db = db
 
     async def _ensure_access(self, user_id: int, project_id: str):
         """Внутрішній метод перевірки доступу."""
-        has_access = await check_if_accessable(user_id, project_id, self.db)
+        has_access = await self.users_repo.check_access(project_id, user_id)
         if not has_access:
             raise PermissionDeniedError(
                 f"User {user_id} does not have access to project {project_id}"

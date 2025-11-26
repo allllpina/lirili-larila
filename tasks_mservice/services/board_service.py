@@ -8,9 +8,13 @@ from api.schemas import (
     TaskPriceInfo,
 )
 from db.models import BoardDocument, TaskDocument
-from db.repositories import BoardRepository, PageRepository, TaskRepository
+from db.repositories import (
+    BoardRepository,
+    PageRepository,
+    TaskRepository,
+    UsersRepository,
+)
 from pymongo.asynchronous.database import AsyncDatabase
-from utils.check_access import check_if_accessable
 
 from .exceptions import BusinessLogicError, NotFoundError, PermissionDeniedError
 from .task_service import TaskService
@@ -22,17 +26,19 @@ class BoardService:
         task_repo: TaskRepository,
         board_repo: BoardRepository,
         page_repo: PageRepository,
+        users_repo: UsersRepository,
         task_service: TaskService,
         db: AsyncDatabase,
     ):
         self.task_repo = task_repo
         self.board_repo = board_repo
         self.page_repo = page_repo
+        self.users_repo = users_repo
         self.task_service = task_service
         self.db = db
 
     async def _ensure_access(self, user_id: int, project_id: str):
-        if not await check_if_accessable(user_id, project_id, self.db):
+        if not await self.users_repo.check_access(project_id, user_id):
             raise PermissionDeniedError(f"Access denied to project {project_id}")
 
     async def create_board(

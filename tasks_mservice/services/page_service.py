@@ -2,9 +2,8 @@ import uuid
 
 from api.schemas import PageCreate, PagePriceInfo, PageUpdate
 from db.models import PageDocument
-from db.repositories import PageRepository, ProjectRepository
+from db.repositories import PageRepository, ProjectRepository, UsersRepository
 from pymongo.asynchronous.database import AsyncDatabase
-from utils.check_access import check_if_accessable
 
 from .board_service import BoardService  # Використовуємо BoardService для каскаду
 from .exceptions import BusinessLogicError, NotFoundError, PermissionDeniedError
@@ -15,16 +14,18 @@ class PageService:
         self,
         page_repo: PageRepository,
         project_repo: ProjectRepository,
-        board_service: BoardService,  # Потрібен для каскадного видалення
+        users_repo: UsersRepository,
+        board_service: BoardService,
         db: AsyncDatabase,
     ):
         self.page_repo = page_repo
         self.project_repo = project_repo
+        self.users_repo = users_repo
         self.board_service = board_service  # Сервіс викликає інший сервіс
         self.db = db
 
     async def _ensure_access(self, user_id: int, project_id: str):
-        if not await check_if_accessable(user_id, project_id, self.db):
+        if not await self.users_repo.check_access(project_id, user_id):
             raise PermissionDeniedError(f"Access denied to project {project_id}")
 
     async def create_page(
