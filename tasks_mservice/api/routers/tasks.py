@@ -115,7 +115,7 @@ async def get_task(
         user_id = user_data["user_data"]["id"]
         task = await service.get_task(task_id, user_id)
 
-        (price, details) = service.calculate_task_price_details(task)
+        (price, details) = await service.calculate_task_price_details(task)
 
         response = task.model_dump()
         response["price"] = price

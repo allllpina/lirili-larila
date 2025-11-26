@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     database_name: SecretStr
     html_path: str
 
+    frontend_url: str
+
     jwt_key: SecretStr
     algorithm: ClassVar[str] = "HS256"
 
