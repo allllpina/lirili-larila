@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ProjectFinance from './pages/ProjectFinance';
 import Dashboard from './pages/Dashboard';
 import Layout from './components/Layout';
 // 👇 НЕ ЗАБУДЬ ЦІ ІМПОРТИ
@@ -37,6 +38,7 @@ function App() {
                {/* 3. Сторінка: Відображається всередині ProjectView */}
                {/* Повний шлях буде: /project/123/page/456 */}
                <Route path="page/:pageId" element={<PageView />} />
+               <Route path="finance" element={<ProjectFinance />} />
             </Route>
 
           </Route>

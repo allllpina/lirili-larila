@@ -1,7 +1,6 @@
 // src/api/services.ts
 import { api } from './axios';
-import type { LoginRequest, RegisterRequest, User, Project, Collaborator, CustomField, Page, Board, Task } from '../types';
-
+import type { LoginRequest, RegisterRequest, User, Project, Collaborator, CustomField, Page, Board, Task, ProjectCostEvaluation } from '../types';
 const url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1313';
 
 export const authService = {
@@ -61,6 +60,10 @@ export const projectService = {
   delete: async (projectId: string) => {
     return api.delete<{ deleted_project: string;  deleted_pages: number; deleted_boards: number; deleted_tasks: number }>(`/lirililarila/projects/delete_project/${projectId}`);
   },
+
+  getCostEvaluation: async (projectId: string) => {
+    return api.get<ProjectCostEvaluation>(`/lirililarila/projects/get_cost_evaluation/${projectId}`);
+  }
 };
 
 // --- PAGE SERVICE ---

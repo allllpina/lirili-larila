@@ -101,3 +101,39 @@ export interface Task {
   time_to_complete: number | null;
   cost: number;
 }
+
+// --- FINANCE TYPES ---
+export interface CostBreakdownUser {
+  usr_id: number;
+  hourly_rate: number;
+  hours_worked: number;
+  total_pay: number;
+}
+
+export interface TaskCost {
+  task_id: string;
+  name: string;
+  total_cost: number;
+  cost_breakdown: CostBreakdownUser[];
+}
+
+export interface BoardCost {
+  board_id: string;
+  name: string;
+  overall: number;
+  per_task: TaskCost[];
+}
+
+export interface PageCost {
+  page_id: string;
+  name: string;
+  overall: number;
+  per_board: BoardCost[];
+}
+
+export interface ProjectCostEvaluation {
+  project_id: string;
+  project_name: string;
+  overall: number;
+  per_page: PageCost[];
+}

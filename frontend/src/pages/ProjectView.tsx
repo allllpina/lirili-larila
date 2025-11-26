@@ -65,6 +65,21 @@ export default function ProjectView() {
            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Admin ID: {project.admin_id}</span>
         </div>
 
+        <div className="mb-4 px-3">
+                <NavLink 
+                    to="finance"
+                    className={({ isActive }) =>
+                        `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition ${
+                        isActive 
+                            ? 'bg-[#1B5448] text-white shadow-md' 
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-[#1B5448]'
+                        }`
+                    }
+                >
+                    <span>💲</span> Finance
+                </NavLink>
+            </div>
+
         <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
             <div className="px-5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Pages</div>
             {project.page_ids.map(id => <SidebarPageLink key={id} pageId={id} />)}
