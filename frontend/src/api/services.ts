@@ -46,7 +46,21 @@ export const projectService = {
     collaborators: Collaborator[]; 
   }) => {
     return api.post<Project>('/lirililarila/projects/create_project', data);
-  }
+  },
+
+  update: async (projectId: string, data: {
+    name?: string;
+    description?: string;
+    collaborators?: Collaborator[];
+  }) => {
+    return api.put<Project>('/lirililarila/projects/edit_project', data, {
+      params: {project_id: projectId}
+    });
+  },
+
+  delete: async (projectId: string) => {
+    return api.delete<{ deleted_project: string;  deleted_pages: number; deleted_boards: number; deleted_tasks: number }>(`/lirililarila/projects/delete_project/${projectId}`);
+  },
 };
 
 // --- PAGE SERVICE ---
@@ -61,6 +75,16 @@ export const pageService = {
   // [GET] /lirililarila/pages/get_page/{page_id} [cite: 391-396]
   getOne: async (id: string) => {
     return api.get<Page>(`/lirililarila/pages/get_page/${id}`);
+  },
+
+  update: async (pageId: string, data: {name?: string; description?: string}) => {
+    return api.put<Page>('/lirililarila/pages/edit_page', data, {
+      params: { page_id: pageId }
+    });
+  },
+
+  delete: async (pageId: string) => {
+    return api.delete<{ deleted_page: string;  deleted_boards: number; deleted_tasks: number}>(`/lirililarila/pages/delete_page/${pageId}`);
   }
 };
 
@@ -76,6 +100,13 @@ export const boardService = {
   // [GET] /lirililarila/boards/get_board/{board_id} [cite: 293-298]
   getOne: async (id: string) => {
     return api.get<Board>(`/lirililarila/boards/get_board/${id}`);
+  },
+
+  update: async (boardId: string, data: {name?: string; description?: string}) => {
+    return api.put<Board>('/lirililarila/boards/edit_board', data, {params: {board_id: boardId}});
+  },
+  delete: async (boardId: string) => {
+    return api.delete<{deled_board: string; deleted_tasks: number}>(`/lirililarila/boards/delete_board/${boardId}`);
   }
 };
 
@@ -99,5 +130,17 @@ export const taskService = {
   // [GET] /lirililarila/tasks/get_task/{task_id} [cite: 159-164]
   getOne: async (id: string) => {
     return api.get<Task>(`/lirililarila/tasks/get_task/${id}`);
+  },
+
+  update: async (taskId: string, data: any) => {
+    return api.put<Task>('/lirililarila/tasks/edit_task', data, {params: {task_id: taskId}});
+  },
+
+  delete: async (taskId: string) => {
+    return api.delete<{deleted_task: string}>(`/lirililarila/tasks/delete_task/${taskId}`);
+  },
+
+  move: async (data: {taskId: string; boardGiverId: string; boardReceiverId: string}) => {
+    return api.put<{status: string}>('/lirililarila/tasks/move_task', data);
   }
 };
