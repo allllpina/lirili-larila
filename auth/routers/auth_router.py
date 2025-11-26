@@ -1,6 +1,7 @@
 from authlib.integrations.starlette_client import OAuth
 from config import get_settings
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from models.auth_models import UserLogin, UserRegister
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -105,4 +106,8 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
 
     user_data = {"id": user.id, "username": user.username}
 
-    return Tkn.create_jwt_token(user_data=user_data)
+    jwt_token = Tkn.create_jwt_token(user_data=user_data)
+
+    url = f"{settings.frontend_url}/login?token={jwt_token}"
+
+    return RedirectResponse(url=url)
