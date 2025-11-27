@@ -24,26 +24,31 @@ class GoogleAIProcessor:
         client = genai.Client(api_key=settings.google_ai_api_key.get_secret_value())
 
         prompt = f"""
-        You are an expert project management assistant.
+        You are an expert project management assistant with strict adherence to data integrity.
         Analyze the following project data (in JSON format).
 
+        *** CRITICAL INSTRUCTION ***
+        You are STRICTLY FORBIDDEN from modifying, re-evaluating, or outputting tasks where the "priority" field is 
+        already set (i.e., not null).
+        Existing priorities are IMMUTABLE. You must only act on tasks where priority is explicitly `null` or `None`.
+
         Your task:
-            1.  **Assign Priority**: Find all tasks where the "priority" field has a value of `null` (or `None`).
-            2.  **Logic**: Based on the overall project information, determine the priority of the task.
+            1.  **Identify Targets**: Scan the data and isolate ONLY the tasks where "priority" is `null`.
+            2.  **Assign Priority**: Analyze the context and assign a priority ONLY to these isolated tasks.
             3.  **Constraints**: Allowed priority values are: "low", "medium", or "high".
-            4.  **Recommendations**: Provide 2-3 general, useful recommendations for the successful completion
+            4.  **Recommendations**: Provide 3-5 general, useful recommendations for the successful completion
             of the project.
-            5.  **Important**: DO NOT TOUCH tasks where priority is already set. You allowed to set priority only for
-            tasks with priority value of `None`
 
             You MUST return the response exclusively as a SINGLE valid JSON object.
-            Do not add any text before or after the JSON (e.g., ```json).
+            Do not add any text before or after the JSON (no markdown formatting like ```json).
 
             Expected JSON response structure:
             {{
             "prioritized_tasks": {{
-                "task_id_1": "assigned_priority",
-                "task_id_2": "assigned_priority"
+                "task_id_X": "assigned_priority",
+                "task_id_Y": "assigned_priority"
+                // IMPORTANT: This object must ONLY contain tasks that were originally null.
+                // Do NOT include tasks that already had a priority.
             }},
             "recommendations": [
                 "First recommendation...",
