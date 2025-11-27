@@ -17,11 +17,11 @@ export default function PageView() {
   const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
   const [isEditPageModalOpen, setIsEditPageModalOpen] = useState(false);
   
-  // Локальний стан для оновлення колонок після DnD
   const [boardRefreshTriggers, setBoardRefreshTriggers] = useState<Record<string, number>>({});
 
+  // 👇 ДОДАНО: Стан для фільтрації
+  const [filterTag, setFilterTag] = useState<string | null>(null);
 
-  // Отримуємо глобальний тригер від сокета
   const { refreshProject, project, globalUpdateTrigger } = useOutletContext<ProjectContextType>();
 
   const fetchPage = () => {
@@ -30,9 +30,9 @@ export default function PageView() {
     }
   };
 
-  // Оновлюємо сторінку при зміні ID або якщо прийшов сигнал від сокета
   useEffect(() => {
     setPage(null);
+    setFilterTag(null);
     fetchPage();
   }, [pageId, globalUpdateTrigger]);
 
@@ -46,38 +46,24 @@ export default function PageView() {
       navigate(`/project/${project._id}`, { replace: true });
   };
 
-  // --- DRAG AND DROP HANDLER ---
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
-
-    // Якщо кинули повз або туди ж, де і було
-    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
-      return;
-    }
+    if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) return;
 
     const boardGiverId = source.droppableId;
     const boardReceiverId = destination.droppableId;
     const taskId = draggableId;
 
     try {
-      // 1. Відправляємо запит на переміщення
-      await taskService.move({
-        taskId,
-        boardGiverId,
-        boardReceiverId
-      });
-
-      // 2. Оновлюємо лічильники оновлення для задіяних колонок
+      await taskService.move({ taskId, boardGiverId, boardReceiverId });
       setBoardRefreshTriggers(prev => ({
         ...prev,
         [boardGiverId]: (prev[boardGiverId] || 0) + 1,
         [boardReceiverId]: (prev[boardReceiverId] || 0) + 1
       }));
-
     } catch (error) {
       console.error("Move failed", error);
-      alert("Failed to move task");
-      fetchPage(); // Повний рефреш при помилці
+      fetchPage();
     }
   };
 
@@ -93,20 +79,23 @@ export default function PageView() {
               <div>
                   <div className="flex items-center gap-2">
                       <h2 className="text-lg font-bold text-gray-900 font-['Montserrat'] leading-tight">{page.name}</h2>
-                      <button 
-                          onClick={() => setIsEditPageModalOpen(true)}
-                          className="text-gray-400 hover:text-[#1B5448] hover:bg-gray-100 rounded p-1 transition"
-                          title="Edit Page"
-                      >
-                          ⋮
-                      </button>
+                      <button onClick={() => setIsEditPageModalOpen(true)} className="text-gray-400 hover:text-[#1B5448] hover:bg-gray-100 rounded p-1 transition">⋮</button>
                   </div>
                   {page.description && <p className="text-xs text-gray-500 mt-0.5">{page.description}</p>}
               </div>
            </div>
            
-           <div className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100 shadow-sm">
-              Total Cost: <span className="font-bold ml-1">${page.cost}</span>
+           <div className="flex items-center gap-4">
+               {/* UI ФІЛЬТРУ */}
+               {filterTag && (
+                   <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100 text-sm animate-fade-in">
+                       <span className="font-bold">Filter:</span> #{filterTag}
+                       <button onClick={() => setFilterTag(null)} className="ml-1 hover:text-red-500 font-bold px-1">✕</button>
+                   </div>
+               )}
+               <div className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100 shadow-sm">
+                  Total Cost: <span className="font-bold ml-1">${page.cost}</span>
+               </div>
            </div>
         </div>
 
@@ -118,38 +107,21 @@ export default function PageView() {
                   key={boardId} 
                   boardId={boardId} 
                   onBoardDeleted={fetchPage}
-                  // Комбінуємо тригери: локальний (DnD) + глобальний (WebSocket)
-                  refreshTrigger={(boardRefreshTriggers[boardId] || 0) + globalUpdateTrigger} 
+                  refreshTrigger={(boardRefreshTriggers[boardId] || 0) + globalUpdateTrigger}
+                  // 👇 ПЕРЕДАЄМО ФІЛЬТРИ ВНИЗ
+                  filterTag={filterTag}
+                  onTagClick={(tag) => setFilterTag(tag)}
               />
             ))}
             
-            {/* Кнопка створення колонки */}
             <div className="w-72 flex-shrink-0 mx-2">
-              <button 
-                  onClick={() => setIsBoardModalOpen(true)}
-                  className="w-full h-12 rounded-xl bg-white/50 border-2 border-dashed border-gray-300 text-gray-500 hover:border-[#1B5448] hover:text-[#1B5448] hover:bg-white transition flex items-center justify-center font-medium shadow-sm"
-              >
-                + Add Another List
-              </button>
+              <button onClick={() => setIsBoardModalOpen(true)} className="w-full h-12 rounded-xl bg-white/50 border-2 border-dashed border-gray-300 text-gray-500 hover:border-[#1B5448] hover:text-[#1B5448] hover:bg-white transition flex items-center justify-center font-medium shadow-sm">+ Add Another List</button>
             </div>
           </div>
         </div>
 
-        {/* MODALS */}
-        <CreateBoardModal 
-            isOpen={isBoardModalOpen}
-            onClose={() => setIsBoardModalOpen(false)}
-            onSuccess={fetchPage}
-            pageId={page._id}
-        />
-
-        <EditPageModal 
-            isOpen={isEditPageModalOpen}
-            onClose={() => setIsEditPageModalOpen(false)}
-            page={page}
-            onUpdate={handlePageUpdate}
-            onDelete={handlePageDelete}
-        />
+        <CreateBoardModal isOpen={isBoardModalOpen} onClose={() => setIsBoardModalOpen(false)} onSuccess={fetchPage} pageId={page._id} />
+        <EditPageModal isOpen={isEditPageModalOpen} onClose={() => setIsEditPageModalOpen(false)} page={page} onUpdate={handlePageUpdate} onDelete={handlePageDelete} />
       </div>
     </DragDropContext>
   );

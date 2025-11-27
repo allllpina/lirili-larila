@@ -12,29 +12,27 @@ import type { ProjectContextType } from '../../pages/ProjectView';
 interface Props {
     boardId: string;
     onBoardDeleted: () => void; 
-    refreshTrigger?: number; // Тригер оновлення
+    refreshTrigger?: number;
+    // 👇 ПРОПСИ ДЛЯ ФІЛЬТРАЦІЇ
+    filterTag: string | null;
+    onTagClick: (tag: string) => void;
 }
 
-export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 0 }: Props) {
+export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 0, filterTag, onTagClick }: Props) {
   const [board, setBoard] = useState<Board | null>(null);
   
-  // Стани модалок
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  
-  // Внутрішній тригер для оновлення карток (коли редагуємо задачу)
   const [tasksUpdateTrigger, setTasksUpdateTrigger] = useState(0);
 
   const { project } = useOutletContext<ProjectContextType>();
 
   const refreshBoard = () => {
     boardService.getOne(boardId).then(res => setBoard(res.data));
-    // При оновленні борда також змушуємо таски перерендеритись
     setTasksUpdateTrigger(prev => prev + 1);
   };
 
-  // Оновлюємось при старті або зміні тригерів
   useEffect(() => {
     refreshBoard();
   }, [boardId, refreshTrigger]);
@@ -54,22 +52,12 @@ export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 
                     {board.task_ids.length}
                 </span>
             </div>
-            {/* Кнопка налаштувань борда */}
-            <button 
-                onClick={() => setIsEditModalOpen(true)}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded px-1 -mr-1 transition"
-            >
-                ⋮
-            </button>
+            <button onClick={() => setIsEditModalOpen(true)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded px-1 -mr-1 transition">⋮</button>
           </div>
-          {board.description && (
-            <p className="text-[10px] text-gray-400 mt-1 line-clamp-2" title={board.description}>
-                {board.description}
-            </p>
-          )}
+          {board.description && <p className="text-[10px] text-gray-400 mt-1 line-clamp-2" title={board.description}>{board.description}</p>}
         </div>
 
-        {/* DROPPABLE TASK LIST */}
+        {/* LIST */}
         <Droppable droppableId={boardId}>
           {(provided, snapshot) => (
             <div
@@ -85,6 +73,9 @@ export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 
                    index={index} 
                    onClick={() => setSelectedTaskId(taskId)}
                    refreshTrigger={tasksUpdateTrigger}
+                   // 👇 ПЕРЕДАЄМО ДАЛІ
+                   filterTag={filterTag}
+                   onTagClick={onTagClick}
                 />
               ))}
               {provided.placeholder}
@@ -94,39 +85,15 @@ export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 
 
         {/* FOOTER */}
         <div className="p-2 shrink-0">
-            <button 
-                onClick={() => setIsTaskModalOpen(true)}
-                className="w-full py-2 text-sm text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-lg transition text-left px-3 flex items-center gap-2"
-            >
+            <button onClick={() => setIsTaskModalOpen(true)} className="w-full py-2 text-sm text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-lg transition text-left px-3 flex items-center gap-2">
             <span className="text-lg leading-none">+</span> Add Task
             </button>
         </div>
       </div>
 
-      {/* MODALS */}
-      <CreateTaskModal 
-         isOpen={isTaskModalOpen}
-         onClose={() => setIsTaskModalOpen(false)}
-         onSuccess={refreshBoard}
-         boardId={boardId}
-         projectCollaborators={project.collaborators}
-      />
-
-      <TaskDetailModal 
-        isOpen={!!selectedTaskId}
-        taskId={selectedTaskId}
-        onClose={() => setSelectedTaskId(null)}
-        onUpdate={refreshBoard}
-        projectCollaborators={project.collaborators}
-      />
-
-      <EditBoardModal 
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        board={board}
-        onUpdate={refreshBoard}
-        onDelete={onBoardDeleted}
-      />
+      <CreateTaskModal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} onSuccess={refreshBoard} boardId={boardId} projectCollaborators={project.collaborators} />
+      <TaskDetailModal isOpen={!!selectedTaskId} taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} onUpdate={refreshBoard} projectCollaborators={project.collaborators} />
+      <EditBoardModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} board={board} onUpdate={refreshBoard} onDelete={onBoardDeleted} />
     </div>
   );
 }

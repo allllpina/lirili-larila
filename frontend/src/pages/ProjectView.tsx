@@ -111,7 +111,7 @@ export default function ProjectView() {
         <div className="p-5 border-b border-gray-100">
            <div className="flex justify-between items-start">
                 <h1 className="font-bold text-gray-800 truncate font-['Montserrat'] text-lg max-w-[180px]" title={project.name}>{project.name}</h1>
-                <button onClick={() => setIsEditProjectOpen(true)} className="text-gray-400 hover:text-[#1B5448] transition" title="Project Settings">⚙️</button>
+                <button onClick={() => setIsEditProjectOpen(true)} className="text-gray-400 hover:text-[#1B5448] transition" title="Project Settings">⋮</button>
            </div>
            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Admin ID: {project.admin_id}</span>
         </div>

@@ -26,7 +26,7 @@ export default function Header() {
         {user && !isDashboard && (
             <Link 
                 to="/"
-                className="text-sm font-medium text-gray-500 hover:text-[#1B5448] transition flex items-center gap-1"
+                className="text-sm font-medium text-gray-500 hover:text-[#1B5448] transition flex items-center gap-1 border-l border-gray-200 pl-6"
             >
                 ← My Projects
             </Link>
