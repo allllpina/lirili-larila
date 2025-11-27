@@ -5,6 +5,7 @@ import type { Project } from '../types';
 import CollaboratorBadge from '../components/project/CollaboratorBadge';
 import CreatePageModal from '../components/modals/CreatePageModal';
 import EditProjectModal from '../components/modals/EditProjectModal';
+import GeminiIcon from '../components/icons/GeminiIcon';
 
 export interface ProjectContextType {
   project: Project;
@@ -77,6 +78,13 @@ export default function ProjectView() {
                     }
                 >
                     <span>💲</span> Finance
+                </NavLink>
+            </div>
+
+        <div className="px-3 mb-4">
+                <NavLink to="ai-analytics" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition ${isActive ? 'bg-gradient-to-r from-blue-600 to-red-500 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'}`}>
+                    <GeminiIcon className="w-4 h-4 text-current" /> 
+                    AI Analytics
                 </NavLink>
             </div>
 

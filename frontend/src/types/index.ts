@@ -137,3 +137,13 @@ export interface ProjectCostEvaluation {
   overall: number;
   per_page: PageCost[];
 }
+
+export interface AiPrioritizedTask {
+  task_id: string;
+  priority: 'low' | 'medium' | 'high' | 'None';  
+}
+
+export interface AiEvaluationResponse {
+  prioritized_tasks: AiPrioritizedTask[];
+  recommendations: string[];
+}

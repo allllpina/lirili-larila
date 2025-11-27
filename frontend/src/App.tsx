@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 // 👇 НЕ ЗАБУДЬ ЦІ ІМПОРТИ
 import ProjectView from './pages/ProjectView';
 import PageView from './pages/PageView';
+import ProjectAI from './pages/ProjectAI';
 
 const PrivateRoute = () => {
   const { user, isLoading } = useAuth();
@@ -39,6 +40,7 @@ function App() {
                {/* Повний шлях буде: /project/123/page/456 */}
                <Route path="page/:pageId" element={<PageView />} />
                <Route path="finance" element={<ProjectFinance />} />
+               <Route path="ai-analytics" element={<ProjectAI />} />
             </Route>
 
           </Route>

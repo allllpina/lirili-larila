@@ -1,6 +1,6 @@
 // src/api/services.ts
 import { api } from './axios';
-import type { LoginRequest, RegisterRequest, User, Project, Collaborator, CustomField, Page, Board, Task, ProjectCostEvaluation } from '../types';
+import type { LoginRequest, RegisterRequest, User, Project, Collaborator, CustomField, Page, Board, Task, ProjectCostEvaluation, AiEvaluationResponse } from '../types';
 const url = import.meta.env.VITE_API_BASE_URL || 'http://localhost:1313';
 
 export const authService = {
@@ -63,6 +63,10 @@ export const projectService = {
 
   getCostEvaluation: async (projectId: string) => {
     return api.get<ProjectCostEvaluation>(`/lirililarila/projects/get_cost_evaluation/${projectId}`);
+  },
+
+  getAiEvaluation: async (projectId: string) => {
+    return api.get<AiEvaluationResponse>(`/lirililarila/projects/get_ai_evaluation/${projectId}`);
   }
 };
 
