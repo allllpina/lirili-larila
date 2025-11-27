@@ -1,22 +1,18 @@
-// src/components/project/BoardColumn.tsx
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Droppable } from '@hello-pangea/dnd';
 import { boardService } from '../../api/services';
 import type { Board } from '../../types';
 import TaskCard from './TaskCard';
-// import CreateTaskModal from '../components/modals/CreateTaskModal';
 import CreateTaskModal from '../modals/CreateTaskModal';
-// import EditBoardModal from '../components/modals/EditBoardModal';
 import EditBoardModal from '../modals/EditBoardModal';
-// import TaskDetailModal from '../components/modals/TaskDetailModal';
 import TaskDetailModal from '../modals/TaskDetailModal';
 import type { ProjectContextType } from '../../pages/ProjectView';
 
 interface Props {
     boardId: string;
     onBoardDeleted: () => void; 
-    refreshTrigger?: number; // Тригер для примусового оновлення ззовні (після DnD)
+    refreshTrigger?: number; // Тригер оновлення
 }
 
 export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 0 }: Props) {
@@ -27,17 +23,18 @@ export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   
-  // Внутрішній тригер для оновлення карток
+  // Внутрішній тригер для оновлення карток (коли редагуємо задачу)
   const [tasksUpdateTrigger, setTasksUpdateTrigger] = useState(0);
 
   const { project } = useOutletContext<ProjectContextType>();
 
   const refreshBoard = () => {
     boardService.getOne(boardId).then(res => setBoard(res.data));
+    // При оновленні борда також змушуємо таски перерендеритись
     setTasksUpdateTrigger(prev => prev + 1);
   };
 
-  // Оновлюємось при старті, або якщо змінився ID, або якщо батько попросив (refreshTrigger)
+  // Оновлюємось при старті або зміні тригерів
   useEffect(() => {
     refreshBoard();
   }, [boardId, refreshTrigger]);
@@ -57,7 +54,7 @@ export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 
                     {board.task_ids.length}
                 </span>
             </div>
-            {/* Кнопка налаштувань */}
+            {/* Кнопка налаштувань борда */}
             <button 
                 onClick={() => setIsEditModalOpen(true)}
                 className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded px-1 -mr-1 transition"
@@ -85,7 +82,7 @@ export default function BoardColumn({ boardId, onBoardDeleted, refreshTrigger = 
                 <TaskCard 
                    key={taskId} 
                    taskId={taskId}
-                   index={index} // Важливо для DnD
+                   index={index} 
                    onClick={() => setSelectedTaskId(taskId)}
                    refreshTrigger={tasksUpdateTrigger}
                 />

@@ -1,4 +1,3 @@
-// src/pages/PageView.tsx
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { DragDropContext } from '@hello-pangea/dnd';
@@ -18,10 +17,12 @@ export default function PageView() {
   const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
   const [isEditPageModalOpen, setIsEditPageModalOpen] = useState(false);
   
-  // Стан для гранулярного оновлення колонок після DnD
+  // Локальний стан для оновлення колонок після DnD
   const [boardRefreshTriggers, setBoardRefreshTriggers] = useState<Record<string, number>>({});
 
-  const { refreshProject, project } = useOutletContext<ProjectContextType>();
+
+  // Отримуємо глобальний тригер від сокета
+  const { refreshProject, project, globalUpdateTrigger } = useOutletContext<ProjectContextType>();
 
   const fetchPage = () => {
     if (pageId) {
@@ -29,10 +30,11 @@ export default function PageView() {
     }
   };
 
+  // Оновлюємо сторінку при зміні ID або якщо прийшов сигнал від сокета
   useEffect(() => {
     setPage(null);
     fetchPage();
-  }, [pageId]);
+  }, [pageId, globalUpdateTrigger]);
 
   const handlePageUpdate = () => {
       fetchPage();
@@ -48,7 +50,7 @@ export default function PageView() {
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
-    // Якщо кинули в нікуди або на те саме місце
+    // Якщо кинули повз або туди ж, де і було
     if (!destination || (destination.droppableId === source.droppableId && destination.index === source.index)) {
       return;
     }
@@ -65,7 +67,7 @@ export default function PageView() {
         boardReceiverId
       });
 
-      // 2. Оновлюємо ТІЛЬКИ ті колонки, яких це торкнулося
+      // 2. Оновлюємо лічильники оновлення для задіяних колонок
       setBoardRefreshTriggers(prev => ({
         ...prev,
         [boardGiverId]: (prev[boardGiverId] || 0) + 1,
@@ -116,7 +118,8 @@ export default function PageView() {
                   key={boardId} 
                   boardId={boardId} 
                   onBoardDeleted={fetchPage}
-                  refreshTrigger={boardRefreshTriggers[boardId] || 0} // Передаємо тригер
+                  // Комбінуємо тригери: локальний (DnD) + глобальний (WebSocket)
+                  refreshTrigger={(boardRefreshTriggers[boardId] || 0) + globalUpdateTrigger} 
               />
             ))}
             
