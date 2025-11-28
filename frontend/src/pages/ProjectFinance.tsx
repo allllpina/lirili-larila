@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { projectService, authService } from '../api/services';
-import type { ProjectCostEvaluation, User } from '../types';
+import type { ProjectCostEvaluation } from '../types';
 
 // Компонент для відображення імені юзера замість ID
 const UserNameDisplay = ({ userId }: { userId: number }) => {
@@ -69,7 +69,7 @@ export default function ProjectFinance() {
                                 paddingAngle={5}
                                 dataKey="value"
                             >
-                                {chartData.map((entry, index) => (
+                                {chartData.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>

@@ -15,6 +15,18 @@ services:
     depends_on:
       - auth_service
       - tasks_service
+      - frontend
+    networks:
+      - backend
+    restart: unless-stopped
+
+    # ========================
+  # Frontend (React + Internal Nginx)
+  # ========================
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
     networks:
       - backend
     restart: unless-stopped
