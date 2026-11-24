@@ -5,9 +5,6 @@ networks:
     driver: bridge
 
 services:
-  # ========================
-  # Nginx Gateway
-  # ========================
   nginx:
     build: ./nginx
     ports:
@@ -20,54 +17,43 @@ services:
       - backend
     restart: unless-stopped
 
-    # ========================
-  # Frontend (React + Internal Nginx)
-  # ========================
   frontend:
-    build: 
+    build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
     networks:
       - backend
     restart: unless-stopped
 
-  # ========================
-  # Auth Service
-  # ========================
   auth_service:
     build: ./auth
+    env_file: ./.env
     depends_on:
       - db-users
     networks:
       - backend
     restart: unless-stopped
 
-  # ========================
-  # Tasks Service
-  # ========================
   tasks_service:
     build: ./tasks_mservice
+    env_file: ./.env
     depends_on:
       - db-tasks
     networks:
       - backend
     restart: unless-stopped
 
-  # ========================
-  # PostgreSQL
-  # ========================
   db-users:
     build: ./db_users
-    env_file: ./db_users/.env
+    env_file: ./.env
     volumes:
       - db_users_data:/var/lib/postgresql/data
     networks:
       - backend
     restart: unless-stopped
 
-  # ========================
-  # MongoDB
-  # ========================
   db-tasks:
     image: mongo:latest
     volumes:

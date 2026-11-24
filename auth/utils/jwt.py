@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
 
 from config import get_settings
@@ -15,12 +15,12 @@ class Tokenization:
         """
         __settings = get_settings()
 
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
         payload = {"sub": user_data["username"], "user_data": user_data, "exp": expire}
 
         return jwt.encode(
             payload,
-            __settings.secret_key.get_secret_value(),
+            __settings.jwt_key.get_secret_value(),
             algorithm=__settings.algorithm,
         )
 
@@ -34,7 +34,7 @@ class Tokenization:
         try:
             return jwt.decode(
                 token,
-                __settings.secret_key.get_secret_value(),
+                __settings.jwt_key.get_secret_value(),
                 algorithms=[__settings.algorithm],
             )
         except JWTError:
