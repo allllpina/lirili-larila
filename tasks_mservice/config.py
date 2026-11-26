@@ -11,7 +11,6 @@ class Settings(BaseSettings):
     database_host: str
     database_port: int
     database_name: SecretStr
-    html_path: str
 
     frontend_url: str
 

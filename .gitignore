@@ -178,3 +178,5 @@ tree.txt
 # Логи бази даних (якщо раптом вирішиш монтувати їх локально)
 pg_data/
 mongo_data/
+
+pyrightconfig.json

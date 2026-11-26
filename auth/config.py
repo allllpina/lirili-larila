@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).parent
 class Settings(BaseSettings):
     google_client_id: SecretStr
     google_client_secret: SecretStr
-    secret_key: SecretStr
+    jwt_key: SecretStr
     algorithm: ClassVar[str] = "HS256"
 
     frontend_url: str
