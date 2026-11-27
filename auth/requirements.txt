@@ -1,7 +1,8 @@
 fastapi[standard]==0.116.1
 python-dotenv==1.1.1
 pydantic==2.11.7
-sqlalchemy[asyncio]==2.0.23
+sqlalchemy[asyncio]==2.1.9
+"sqlalchemy>=2.0.36"
 asyncpg==0.30.0
 Authlib==1.6.4
 passlib[bcrypt]==1.7.4
