@@ -180,3 +180,5 @@ pg_data/
 mongo_data/
 
 pyrightconfig.json
+.direnv
+.envrc
