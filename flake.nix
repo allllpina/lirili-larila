@@ -24,6 +24,10 @@
           pkgs.stdenv.cc.cc.lib
           pkgs.zlib
         ];
+
+        shellHook = ''
+          source .venv/bin/activate
+        '';
       };
     };
 }
