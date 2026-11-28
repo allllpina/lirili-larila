@@ -116,7 +116,6 @@ async def get_ai_evaluation(
         ai_result = await AI.get_priority_and_recomendations(full_project)
 
         if ai_result.prioritized_tasks:
-
             for item in ai_result.prioritized_tasks:
                 try:
                     update_data = TaskUpdate(priority=item.priority)

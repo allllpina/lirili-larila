@@ -177,9 +177,10 @@ class BoardService:
         tasks = await self.task_repo.get_by_board_id(board.id)
 
         for task in tasks:
-            (task_cost, cost_breakdown) = (
-                await self.task_service.calculate_task_price_details(task)
-            )
+            (
+                task_cost,
+                cost_breakdown,
+            ) = await self.task_service.calculate_task_price_details(task)
 
             tasks_reports.append(
                 TaskPriceInfo(
