@@ -33,7 +33,7 @@ jobs:
       # Lint only for now. After a one-off `ruff format .` commit,
       # append `&& ruff format --check .` here.
       - name: Lint
-        run: ruff check .
+        run: ruff check . && ruff format --check .
 
       - name: Tests
         run: pytest -v
@@ -67,7 +67,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Lint
-        run: ruff check .
+        run: ruff check . && ruff format --check .
 
       - name: Tests
         env:
